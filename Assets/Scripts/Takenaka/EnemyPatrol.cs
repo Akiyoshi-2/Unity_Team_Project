@@ -1,39 +1,152 @@
-using UnityEngine;
-using UnityEngine.AI; // NavMesh‚ğg‚¤‚½‚ß‚É•K—v
+ï»¿using UnityEngine;
+using UnityEngine.AI;
 
 public class EnemyPatrol : MonoBehaviour
 {
-    [Header("œpœj‚Ìİ’è")]
-    public float moveSpeed = 2.0f;      // •à‚­‘¬“x
-    public float patrolRadius = 10.0f; // Ÿ‚Ì–Ú“I’n‚ğ’T‚·”ÍˆÍ
-    public float waitTime = 2.0f;      // –Ú“I’n‚É’…‚¢‚½‚ ‚Æ‚Ì‘Ò‹@ŠÔ
+    [Header("å¾˜å¾Šã®è¨­å®š")]
+    public float moveSpeed = 2.0f;
+    public float patrolRadius = 15.0f;
+    public float waitTime = 2.0f;
+
+    [Header("è¿½è·¡ã®è¨­å®š")]
+    public float detectionRange = 15.0f;
+    public float chaseSpeed = 5.0f;
+    [Tooltip("ã“ã®è·é›¢ï¼ˆãƒ¡ãƒ¼ãƒˆãƒ«ï¼‰ã¾ã§è¿‘ã¥ã„ãŸã‚‰æ•ã¾ã£ãŸã¨ã¿ãªã™")]
+    public float catchDistance = 1.0f;
 
     private NavMeshAgent agent;
     private float waitTimer;
+    private Transform player;
+    private bool isChasing = false;
 
     void Start()
     {
-        // NavMeshAgent‚ğæ“¾
         agent = GetComponent<NavMeshAgent>();
-
-        // ‰Šú‚ÌˆÚ“®‘¬“x‚ğİ’è
         agent.speed = moveSpeed;
 
-        // Å‰‚Ì–Ú“I’n‚ğŒˆ‚ß‚é
+        // ã‚·ãƒ¼ãƒ³å†…ã®Playerã‚¿ã‚°ã‚’æ¢ã™
+        GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
+        if (playerObj != null) player = playerObj.transform;
+
         SetRandomDestination();
     }
 
     void Update()
     {
-        // 1. –Ú“I’n‚ÉŒü‚©‚Á‚ÄˆÚ“®’†‚©ƒ`ƒFƒbƒN
-        // pathPending: Œo˜HŒvZ’†‚Å‚Í‚È‚¢
-        // remainingDistance: –Ú“I’n‚Ü‚Å‚Ìc‚è‹——£‚ª‚í‚¸‚©
+        // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ãŒæ—¢ã«å‰Šé™¤ã•ã‚Œã¦ã„ã‚‹ï¼ˆnullï¼‰ãªã‚‰ä½•ã‚‚ã—ãªã„
+        if (player == null)
+        {
+            if (isChasing) StopChasing();
+            return;
+        }
+
+        float distanceToPlayer = Vector3.Distance(transform.position, player.position);
+
+        // è·é›¢ã«ã‚ˆã‚‹å¼·åˆ¶æ•ç²åˆ¤å®š
+        if (isChasing && distanceToPlayer <= catchDistance)
+        {
+            CatchPlayer(player.gameObject);
+            return;
+        }
+
+        // æ¢çŸ¥åˆ¤å®š
+        if (distanceToPlayer <= detectionRange && CanSeePlayer())
+        {
+            if (!isChasing) StartChasing();
+        }
+        else if (isChasing)
+        {
+            StopChasing();
+        }
+
+        // è¡Œå‹•å®Ÿè¡Œ
+        if (isChasing)
+        {
+            agent.SetDestination(player.position);
+        }
+        else
+        {
+            PatrolBehavior();
+        }
+    }
+
+    bool CanSeePlayer()
+    {
+        if (player == null) return false;
+
+        Vector3 eyePos = transform.position + Vector3.up * 1.0f;
+        Vector3 targetPos = player.position;
+        Vector3 direction = (targetPos - eyePos).normalized;
+
+        RaycastHit hit;
+        Debug.DrawRay(eyePos, direction * detectionRange, Color.red);
+
+        if (Physics.Raycast(eyePos, direction, out hit, detectionRange))
+        {
+            if (hit.collider.transform.root.CompareTag("Player"))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void StartChasing()
+    {
+        isChasing = true;
+        agent.speed = chaseSpeed;
+        agent.velocity = Vector3.zero;
+        agent.ResetPath();
+        Debug.Log("<color=yellow>â˜…è¿½è·¡é–‹å§‹ï¼</color>");
+    }
+
+    void StopChasing()
+    {
+        isChasing = false;
+        agent.speed = moveSpeed;
+        Debug.Log("<color=white>â–¶å¾˜å¾Šãƒ¢ãƒ¼ãƒ‰</color>");
+        SetRandomDestination();
+    }
+
+    // æ¥è§¦åˆ¤å®šï¼ˆç‰©ç†ã‚¤ãƒ™ãƒ³ãƒˆï¼‰
+    private void OnTriggerEnter(Collider other)
+    {
+        if (other.transform.root.CompareTag("Player"))
+        {
+            CatchPlayer(other.transform.root.gameObject);
+        }
+    }
+
+    private void OnCollisionEnter(Collision collision)
+    {
+        if (collision.transform.root.CompareTag("Player"))
+        {
+            CatchPlayer(collision.transform.root.gameObject);
+        }
+    }
+
+    // --- ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼æ•ç²ï¼ˆå‰Šé™¤ï¼‰ã®å…±é€šå‡¦ç† ---
+    void CatchPlayer(GameObject target)
+    {
+        // æ—¢ã«å‰Šé™¤ã•ã‚Œã¦ã„ãŸã‚‰ä½•ã‚‚ã—ãªã„
+        if (target == null) return;
+
+        Debug.Log("<color=red>ã€æ•ç²æˆåŠŸã€‘ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã‚’å‰Šé™¤ï¼ˆDestroyï¼‰ã—ã¾ã—ãŸï¼</color>");
+
+        // Playerã‚¿ã‚°ãŒä»˜ã„ã¦ã„ã‚‹ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆï¼ˆãƒ«ãƒ¼ãƒˆï¼‰ã‚’å®Œå…¨ã«å‰Šé™¤
+        Destroy(target.transform.root.gameObject);
+
+        // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ãŒã„ãªããªã£ãŸã®ã§è¿½è·¡ã‚’å¼·åˆ¶çµ‚äº†
+        isChasing = false;
+        agent.speed = moveSpeed;
+        SetRandomDestination();
+    }
+
+    void PatrolBehavior()
+    {
         if (!agent.pathPending && agent.remainingDistance < 0.5f)
         {
-            // 2. –Ú“I’n‚É’…‚¢‚½‚çƒ^ƒCƒ}[‚ği‚ß‚é
             waitTimer += Time.deltaTime;
-
-            // 3. ‘Ò‹@ŠÔ‚ªŒo‰ß‚µ‚½‚çŸ‚Ì–Ú“I’n‚Ö
             if (waitTimer >= waitTime)
             {
                 SetRandomDestination();
@@ -42,25 +155,14 @@ public class EnemyPatrol : MonoBehaviour
         }
     }
 
-    // ƒ‰ƒ“ƒ_ƒ€‚È–Ú“I’n‚ğİ’è‚·‚éŠÖ”
     void SetRandomDestination()
     {
-        // Œ»İ’n‚©‚ç patrolRadius ‚Ì”ÍˆÍ“à‚Åƒ‰ƒ“ƒ_ƒ€‚È•ûŒü‚ğŒˆ‚ß‚é
-        Vector3 randomDir = Random.insideUnitSphere * patrolRadius;
-        randomDir += transform.position;
-
-        // ‚»‚ÌêŠ‚ª NavMeshi•à‚¯‚éêŠj‚Ìã‚É‚ ‚é‚©Šm”F‚µAÀ•W‚ğŠm’è‚³‚¹‚é
+        Vector3 randomDirection = Random.insideUnitSphere * patrolRadius;
+        randomDirection += transform.position;
         NavMeshHit hit;
-        if (NavMesh.SamplePosition(randomDir, out hit, patrolRadius, 1))
+        if (NavMesh.SamplePosition(randomDirection, out hit, patrolRadius, 1))
         {
             agent.SetDestination(hit.position);
         }
-    }
-
-    // ƒGƒfƒBƒ^ã‚Åœpœj”ÍˆÍ‚ğ‹Šo‰»‚·‚éiÂ‚¢‰~‚ª•\¦‚³‚ê‚Ü‚·j
-    void OnDrawGizmosSelected()
-    {
-        Gizmos.color = Color.blue;
-        Gizmos.DrawWireSphere(transform.position, patrolRadius);
     }
 }
