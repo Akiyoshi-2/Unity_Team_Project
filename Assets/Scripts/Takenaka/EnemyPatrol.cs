@@ -3,87 +3,126 @@ using UnityEngine.AI;
 
 public class EnemyPatrol : MonoBehaviour
 {
-    [Header("徘徊の設定")]
-    public float moveSpeed = 2.0f;
-    public float patrolRadius = 15.0f;
-    public float waitTime = 2.0f;
+    [Header("徘徊")]
+    public float patrolRadius = 999f;
+    public float waitTime = 0f;
+    public float moveSpeed = 5f;
 
-    [Header("追跡の設定")]
-    public float detectionRange = 15.0f;
-    public float chaseSpeed = 5.0f;
-    [Tooltip("この距離（メートル）まで近づいたら捕まったとみなす")]
-    public float catchDistance = 1.0f;
+    [Header("追跡")]
+    public float detectionRange = 50f;
+    public float chaseSpeed = 8f;
+    public float catchDistance = 1.5f; // インスペクターより少し広めに設定
+
+    [Header("探索")]
+    public float searchTime = 5f;
+    public float lostTargetGracePeriod = 1.5f;
 
     private NavMeshAgent agent;
-    private float waitTimer;
     private Transform player;
-    private bool isChasing = false;
+    private Vector3 startPosition;
+    private Vector3 lastKnownPosition;
+    private float waitTimer;
+    private float searchTimer;
+    private float lostTargetTimer;
+
+    private enum EnemyState { Patrol, Chase, Search }
+    private EnemyState currentState;
 
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
         agent.speed = moveSpeed;
-
-        // シーン内のPlayerタグを探す
-        GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
-        if (playerObj != null) player = playerObj.transform;
-
+        FindPlayer();
+        startPosition = transform.position;
+        currentState = EnemyState.Patrol;
         SetRandomDestination();
     }
 
     void Update()
     {
-        // プレイヤーが既に削除されている（null）なら何もしない
         if (player == null)
         {
-            if (isChasing) StopChasing();
+            FindPlayer();
+            if (player == null) return;
+        }
+
+        // --- 重要：距離による絶対的な捕獲判定 ---
+        float distance = Vector3.Distance(transform.position, player.position);
+        if (distance <= catchDistance)
+        {
+            Debug.Log("<color=red>【距離判定】プレイヤーを捕獲！</color>");
+            CatchPlayer();
             return;
         }
 
-        float distanceToPlayer = Vector3.Distance(transform.position, player.position);
+        bool canSeePlayer = CanSeePlayerWithLog();
 
-        // 距離による強制捕獲判定
-        if (isChasing && distanceToPlayer <= catchDistance)
+        // 視界に捉えている間は常に目的地を更新
+        if (canSeePlayer)
         {
-            CatchPlayer(player.gameObject);
-            return;
-        }
-
-        // 探知判定
-        if (distanceToPlayer <= detectionRange && CanSeePlayer())
-        {
-            if (!isChasing) StartChasing();
-        }
-        else if (isChasing)
-        {
-            StopChasing();
-        }
-
-        // 行動実行
-        if (isChasing)
-        {
+            if (currentState != EnemyState.Chase)
+            {
+                agent.ResetPath();
+                currentState = EnemyState.Chase;
+                Debug.Log("<color=yellow>【視界発見】追跡中</color>");
+            }
+            lastKnownPosition = player.position;
             agent.SetDestination(player.position);
+            lostTargetTimer = 0;
+            agent.speed = chaseSpeed;
         }
-        else
+
+        switch (currentState)
         {
-            PatrolBehavior();
+            case EnemyState.Patrol:
+                agent.speed = moveSpeed;
+                Patrol();
+                break;
+
+            case EnemyState.Chase:
+                if (!canSeePlayer)
+                {
+                    lostTargetTimer += Time.deltaTime;
+                    if (lostTargetTimer < lostTargetGracePeriod)
+                    {
+                        agent.SetDestination(player.position);
+                    }
+                    else
+                    {
+                        currentState = EnemyState.Search;
+                        searchTimer = searchTime;
+                        agent.SetDestination(lastKnownPosition);
+                        Debug.Log("<color=orange>【見失い】探索へ移行</color>");
+                    }
+                }
+                break;
+
+            case EnemyState.Search:
+                agent.speed = moveSpeed;
+                if (!agent.pathPending && agent.remainingDistance < 0.5f)
+                {
+                    searchTimer -= Time.deltaTime;
+                    if (searchTimer <= 0) StopChasing();
+                }
+                break;
         }
     }
 
-    bool CanSeePlayer()
+    bool CanSeePlayerWithLog()
     {
         if (player == null) return false;
-
-        Vector3 eyePos = transform.position + Vector3.up * 1.0f;
-        Vector3 targetPos = player.position;
-        Vector3 direction = (targetPos - eyePos).normalized;
+        // 敵の目線をさらに高く（自分に当たらないように）
+        Vector3 eyePos = transform.position + Vector3.up * 1.6f;
+        Vector3 targetPos = player.position + Vector3.up * 0.5f;
+        Vector3 dir = (targetPos - eyePos).normalized;
 
         RaycastHit hit;
-        Debug.DrawRay(eyePos, direction * detectionRange, Color.red);
+        Debug.DrawRay(eyePos, dir * detectionRange, Color.red);
 
-        if (Physics.Raycast(eyePos, direction, out hit, detectionRange))
+        // 自分を無視するために1.2m前方から発射
+        if (Physics.Raycast(eyePos + dir * 1.2f, dir, out hit, detectionRange))
         {
-            if (hit.collider.transform.root.CompareTag("Player"))
+            if (hit.collider.CompareTag("Player") || hit.transform.root.CompareTag("Player"))
             {
                 return true;
             }
@@ -91,78 +130,64 @@ public class EnemyPatrol : MonoBehaviour
         return false;
     }
 
-    void StartChasing()
+    void CatchPlayer()
     {
-        isChasing = true;
-        agent.speed = chaseSpeed;
+        if (player == null) return;
+
+        GameObject targetObj = player.root.gameObject;
+
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.RequestRespawn(targetObj);
+        }
+        else
+        {
+            Destroy(targetObj);
+        }
+
+        player = null;
+        StopChasing();
         agent.velocity = Vector3.zero;
         agent.ResetPath();
-        Debug.Log("<color=yellow>★追跡開始！</color>");
     }
 
-    void StopChasing()
-    {
-        isChasing = false;
-        agent.speed = moveSpeed;
-        Debug.Log("<color=white>▶徘徊モード</color>");
-        SetRandomDestination();
-    }
-
-    // 接触判定（物理イベント）
+    // 物理的な接触でも反応するように追加
     private void OnTriggerEnter(Collider other)
     {
-        if (other.transform.root.CompareTag("Player"))
+        if (other.CompareTag("Player") || other.transform.root.CompareTag("Player"))
         {
-            CatchPlayer(other.transform.root.gameObject);
+            Debug.Log("<color=red>【物理接触】プレイヤーを捕獲！</color>");
+            CatchPlayer();
         }
     }
 
-    private void OnCollisionEnter(Collision collision)
+    void FindPlayer()
     {
-        if (collision.transform.root.CompareTag("Player"))
-        {
-            CatchPlayer(collision.transform.root.gameObject);
-        }
+        GameObject obj = GameObject.FindGameObjectWithTag("Player");
+        if (obj != null) player = obj.transform;
     }
 
-    // --- プレイヤー捕獲（削除）の共通処理 ---
-    void CatchPlayer(GameObject target)
+    void Patrol()
     {
-        // 既に削除されていたら何もしない
-        if (target == null) return;
-
-        Debug.Log("<color=red>【捕獲成功】プレイヤーを削除（Destroy）しました！</color>");
-
-        // Playerタグが付いているオブジェクト（ルート）を完全に削除
-        Destroy(target.transform.root.gameObject);
-
-        // プレイヤーがいなくなったので追跡を強制終了
-        isChasing = false;
-        agent.speed = moveSpeed;
-        SetRandomDestination();
-    }
-
-    void PatrolBehavior()
-    {
-        if (!agent.pathPending && agent.remainingDistance < 0.5f)
-        {
-            waitTimer += Time.deltaTime;
-            if (waitTimer >= waitTime)
-            {
-                SetRandomDestination();
-                waitTimer = 0;
-            }
-        }
+        if (agent.pathPending || agent.remainingDistance > 0.5f) return;
+        waitTimer += Time.deltaTime;
+        if (waitTimer >= waitTime) { SetRandomDestination(); waitTimer = 0; }
     }
 
     void SetRandomDestination()
     {
-        Vector3 randomDirection = Random.insideUnitSphere * patrolRadius;
-        randomDirection += transform.position;
+        Vector3 randomPos = startPosition + Random.insideUnitSphere * patrolRadius;
+        randomPos.y = transform.position.y;
         NavMeshHit hit;
-        if (NavMesh.SamplePosition(randomDirection, out hit, patrolRadius, 1))
-        {
+        if (NavMesh.SamplePosition(randomPos, out hit, 10f, NavMesh.AllAreas))
             agent.SetDestination(hit.position);
-        }
+    }
+
+    void StopChasing()
+    {
+        currentState = EnemyState.Patrol;
+        agent.speed = moveSpeed;
+        agent.ResetPath();
+        SetRandomDestination();
     }
 }
