@@ -42,6 +42,12 @@ public class ChaseEnemy : MonoBehaviour
 
     void Update()
     {
+        if (playerTransform == null)
+        {
+            GameObject p = GameObject.FindGameObjectWithTag("Player");
+            if (p != null) playerTransform = p.transform;
+        }
+
         // プレイヤーがいない場合（捕まえた後など）
         if (playerTransform == null)
         {
