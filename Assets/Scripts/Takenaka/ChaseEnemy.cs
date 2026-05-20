@@ -8,10 +8,10 @@ public class ChaseEnemy : MonoBehaviour
     [Header("追跡設定")]
     [SerializeField] private float detectionRange = 10f;
     [SerializeField] private float stopDistance = 0.1f;
-    [SerializeField] private float chaseSpeed = 30f;   // 追跡時の速度（インスペクターで調整）
+    [SerializeField] private float chaseSpeed = 30f;   // 追跡時の速度
 
     [Header("徘徊設定")]
-    [SerializeField] private float patrolSpeed = 10f;  // 徘徊時の速度（インスペクターで調整）
+    [SerializeField] private float patrolSpeed = 10f;  // 徘徊時の速度
     [SerializeField] private float waitTimeAtPoint = 2f;
     [SerializeField] private List<Transform> patrolPoints = new List<Transform>();
 
@@ -25,7 +25,6 @@ public class ChaseEnemy : MonoBehaviour
     {
         agent = GetComponent<NavMeshAgent>();
 
-        // インスペクターの設定を優先するため、初期値のみスクリプトから設定
         agent.stoppingDistance = stopDistance;
 
         // タグ参照による自動取得
@@ -48,7 +47,7 @@ public class ChaseEnemy : MonoBehaviour
             if (p != null) playerTransform = p.transform;
         }
 
-        // プレイヤーがいない場合（捕まえた後など）
+        // プレイヤーがいない場合（捕まえた後）
         if (playerTransform == null)
         {
             isChasing = false;
