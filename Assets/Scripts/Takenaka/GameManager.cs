@@ -6,7 +6,7 @@ public class GameManager : MonoBehaviour
     public static GameManager Instance;
 
     [Header("プレイヤー設定")]
-    public GameObject playerPrefab; // プレイヤーのプレハブ（Projectウィンドウから入れる）
+    public GameObject playerPrefab;
 
     [Header("リスポーン範囲（長方形）")]
     public Vector3 spawnCenter = Vector3.zero;
