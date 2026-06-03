@@ -22,6 +22,8 @@ public class ChaseEnemy : MonoBehaviour
     [SerializeField] private float waitTimeAtPoint = 2f;
     [SerializeField] private List<Transform> patrolPoints = new List<Transform>();
 
+    [SerializeField] GameObject player;
+
     private NavMeshAgent agent;
     private Transform playerTransform;
     private int currentPatrolIndex = 0;
@@ -57,7 +59,6 @@ public class ChaseEnemy : MonoBehaviour
 
     void Update()
     {
-
         // プレイヤーがいない場合（初期化失敗や捕まえた後）
         if (playerTransform == null)
         {
@@ -87,7 +88,7 @@ public class ChaseEnemy : MonoBehaviour
 
 
         // プレイヤーが検出範囲内にいるかどうかをチェック
-        if (distanceToPlayer <= detectionRange)
+        if (distanceToPlayer <= detectionRange && player.gameObject.tag == "Player")
         {
             // 追跡中
             isChasing = true;
@@ -103,6 +104,7 @@ public class ChaseEnemy : MonoBehaviour
             // 範囲外で徘徊中
             if (isChasing)
             {
+                agent.SetDestination(this.transform.position);
                 // 追跡から徘徊に切り替える際の処理
                 isChasing = false;
             }

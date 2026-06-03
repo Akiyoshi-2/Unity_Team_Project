@@ -39,6 +39,8 @@ public class Player : MonoBehaviour
     private bool run = false;
     private bool walk = false;
 
+    private bool tagChange = false;
+
     [SerializeField]
     private float staminaTime = 4.0f;
     [SerializeField]
@@ -69,7 +71,7 @@ public class Player : MonoBehaviour
         }
         if (this.transform.position.y < -10)
         {
-            this.transform.position = new Vector3(0, 1, 0);
+            this.transform.position = new Vector3(-55, 1, 0);
         }
         if (Input.GetKey(KeyCode.W))
         {
@@ -138,6 +140,20 @@ public class Player : MonoBehaviour
             }
             Squat = !Squat;
             SquatMove = true;
+        }
+
+        if (Input.GetKeyDown(KeyCode.T))
+        {
+            tagChange = !tagChange;
+        }
+
+        if (tagChange)
+        {
+            this.transform.tag = "Invisible";
+        }
+        else
+        {
+            this.transform.tag = "Player";
         }
 
         if (Input.GetKeyDown(KeyCode.F))

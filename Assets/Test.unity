@@ -13392,6 +13392,11 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 745684264}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &746460572 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1102334363130891642, guid: 6af0052f6b8c907449ad9804f00e137d, type: 3}
+  m_PrefabInstance: {fileID: 1052961613}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &747222967
 GameObject:
   m_ObjectHideFlags: 0
@@ -16239,7 +16244,7 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 8231545851934808387, guid: 6af0052f6b8c907449ad9804f00e137d, type: 3}
   m_PrefabInstance: {fileID: 1052961613}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
+  m_GameObject: {fileID: 746460572}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 29a9582a5c4ae424495c10f3750c8cd6, type: 3}
@@ -19813,17 +19818,21 @@ PrefabInstance:
       propertyPath: m_Name
       value: Player
       objectReference: {fileID: 0}
+    - target: {fileID: 1102334363130891642, guid: 6af0052f6b8c907449ad9804f00e137d, type: 3}
+      propertyPath: m_TagString
+      value: Player
+      objectReference: {fileID: 0}
     - target: {fileID: 5000600987818892394, guid: 6af0052f6b8c907449ad9804f00e137d, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -53.918255
+      value: -55
       objectReference: {fileID: 0}
     - target: {fileID: 5000600987818892394, guid: 6af0052f6b8c907449ad9804f00e137d, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.049998313
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5000600987818892394, guid: 6af0052f6b8c907449ad9804f00e137d, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -0.45251757
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5000600987818892394, guid: 6af0052f6b8c907449ad9804f00e137d, type: 3}
       propertyPath: m_LocalRotation.w
@@ -35919,6 +35928,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6438001656119061081, guid: 621718ea97d6c9a4c99b1cc7d953563d, type: 3}
+      propertyPath: player
+      value: 
+      objectReference: {fileID: 746460572}
     - target: {fileID: 6438001656119061081, guid: 621718ea97d6c9a4c99b1cc7d953563d, type: 3}
       propertyPath: chaseSpeed
       value: 6
