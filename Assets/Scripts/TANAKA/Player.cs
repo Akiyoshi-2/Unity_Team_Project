@@ -56,27 +56,20 @@ public class Player : MonoBehaviour
 
         if (Input.GetKey(KeyCode.S))
         {
-            Vector3 velocityXZ = -this.transform.forward * m_BackSpeed;
-            moveXZ = new Vector3(velocityXZ.x, rb.linearVelocity.y, velocityXZ.z);
+            moveXZ += -this.transform.forward * m_BackSpeed;
         }
         if (Input.GetKey(KeyCode.D))
         {
-            Vector3 velocityXZ = this.transform.right * m_SideSpeed;
-            moveXZ = new Vector3(velocityXZ.x, rb.linearVelocity.y, velocityXZ.z);
+            moveXZ += this.transform.right * m_SideSpeed;
         }
         if (Input.GetKey(KeyCode.A))
         {
-            Vector3 velocityXZ = -this.transform.right * m_SideSpeed;
-            moveXZ = new Vector3(velocityXZ.x, rb.linearVelocity.y, velocityXZ.z);
+            moveXZ += -this.transform.right * m_SideSpeed;
         }
-        if (this.transform.position.y < -10)
-        {
-            this.transform.position = new Vector3(-55, 1, 0);
-        }
+
         if (Input.GetKey(KeyCode.W))
         {
-            Vector3 velocityXZ = this.transform.forward * m_ForwardSpeed;
-            moveXZ = new Vector3(velocityXZ.x, rb.linearVelocity.y, velocityXZ.z);
+            moveXZ += this.transform.forward * m_ForwardSpeed;
             if (run && !staminaOut)
             {
                 stamina -= Time.deltaTime * 10 / staminaTime;
@@ -129,7 +122,7 @@ public class Player : MonoBehaviour
             stamina += Time.deltaTime * 10 / staminaHealTime;
         }
 
-        if (Input.GetKeyDown(KeyCode.C))
+        if (Input.GetKeyDown(KeyCode.C) && !staminaOut)
         {
             if (!Squat)
             {
