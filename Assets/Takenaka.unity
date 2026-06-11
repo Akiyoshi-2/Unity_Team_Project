@@ -161,12 +161,15 @@ MonoBehaviour:
   detectionRange: 50
   fieldOfViewAngle: 90
   stopDistance: 0.1
-  chaseSpeed: 5
+  chaseSpeed: 9
   obstacleMask:
     serializedVersion: 2
     m_Bits: 8
-  searchWaitTime: 1
-  patrolSpeed: 10
+  searchWaitTime: 2.5
+  overshootDistance: 5
+  lookAngle: 60
+  lookSpeed: 60
+  patrolSpeed: 5
   waitTimeAtPoint: 2
   patrolPoints: []
 --- !u!195 &80794886
@@ -213,7 +216,7 @@ Rigidbody:
     m_Bits: 0
   m_ImplicitCom: 1
   m_ImplicitTensor: 1
-  m_UseGravity: 0
+  m_UseGravity: 1
   m_IsKinematic: 1
   m_Interpolate: 0
   m_Constraints: 0
@@ -1417,7 +1420,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5000600987818892394, guid: 6af0052f6b8c907449ad9804f00e137d, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.49999803
+      value: 6.11
       objectReference: {fileID: 0}
     - target: {fileID: 5000600987818892394, guid: 6af0052f6b8c907449ad9804f00e137d, type: 3}
       propertyPath: m_LocalPosition.z
