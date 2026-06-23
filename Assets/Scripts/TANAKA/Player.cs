@@ -25,6 +25,7 @@ public class Player : MonoBehaviour
     private Camera m_Camera;
 
     Vector3 camera_m;
+    Vector3 player_m;
 
     private float m_ForwardSpeed = 6f;
     private float m_BackSpeed = 3f;
@@ -41,6 +42,9 @@ public class Player : MonoBehaviour
 
     private bool tagChange = false;
 
+    private Vector3 posSave = Vector3.zero;
+    private float dirStop;
+
     [SerializeField]
     private float staminaTime = 4.0f;
     [SerializeField]
@@ -54,58 +58,115 @@ public class Player : MonoBehaviour
 
         float moveY = rb.linearVelocity.y;
 
-        if (Input.GetKey(KeyCode.S))
+        if (!tagChange)
         {
-            moveXZ += -this.transform.forward * m_BackSpeed;
-        }
-        if (Input.GetKey(KeyCode.D))
-        {
-            moveXZ += this.transform.right * m_SideSpeed;
-        }
-        if (Input.GetKey(KeyCode.A))
-        {
-            moveXZ += -this.transform.right * m_SideSpeed;
-        }
 
-        if (Input.GetKey(KeyCode.W))
-        {
-            moveXZ += this.transform.forward * m_ForwardSpeed;
-            if (run && !staminaOut)
+            if (Input.GetKey(KeyCode.S))
             {
-                stamina -= Time.deltaTime * 10 / staminaTime;
-                if (stamina <= 0)
+                moveXZ += -this.transform.forward * m_BackSpeed;
+            }
+            if (Input.GetKey(KeyCode.D))
+            {
+                moveXZ += this.transform.right * m_SideSpeed;
+            }
+            if (Input.GetKey(KeyCode.A))
+            {
+                moveXZ += -this.transform.right * m_SideSpeed;
+            }
+
+            if (Input.GetKey(KeyCode.W))
+            {
+                moveXZ += this.transform.forward * m_ForwardSpeed;
+                if (run && !staminaOut)
                 {
-                    run = false;
-                    staminaOut = true;
+                    stamina -= Time.deltaTime * 10 / staminaTime;
+                    if (stamina <= 0)
+                    {
+                        run = false;
+                        staminaOut = true;
+                    }
+                }
+                walk = true;
+            }
+            else
+            {
+                walk = false;
+            }
+
+            if (Input.GetKeyDown(KeyCode.F))
+            {
+                RaycastHit raycastHit;
+
+                bool hit = Physics.Raycast(m_Camera.transform.position, m_Camera.transform.forward, out raycastHit, 2.5f);
+                if (hit && raycastHit.collider.tag == "item")
+                {
+                    raycastHit.collider.gameObject.SetActive(false);
+                    Debug.Log(raycastHit.collider.gameObject.name + "‚ðE‚Á‚½"); //Œã‚ÅÁ‚·
+                }
+                if (hit && raycastHit.collider.tag == "HideBox")
+                {
+                    posSave = this.transform.position;
+                    this.transform.localScale = Vector3.zero;
+                    this.transform.position = raycastHit.transform.position;
+                    this.transform.localEulerAngles = raycastHit.transform.localEulerAngles;
+                    dirStop = raycastHit.transform.localEulerAngles.y;
+                    rb.useGravity = false;
+                    tagChange = true;
                 }
             }
-            walk = true;
+
+            if (walk && Input.GetKey(KeyCode.LeftShift) && !Squat && !staminaOut)
+            {
+                m_ForwardSpeed = 10;
+                m_SideSpeed = 3;
+                m_BackSpeed = 3;
+                run = true;
+            }
+            else if (!Squat && !staminaOut)
+            {
+                m_ForwardSpeed = 6;
+                m_SideSpeed = 3;
+                m_BackSpeed = 3;
+                run = false;
+            }
+            else
+            {
+                run = false;
+            }
+
+            if (Input.GetKeyDown(KeyCode.C) && !staminaOut)
+            {
+                if (!Squat)
+                {
+                    this.transform.position = new Vector3(
+                    this.transform.position.x,
+                    this.transform.position.y - 0.5f,
+                    this.transform.position.z);
+                }
+                Squat = !Squat;
+                SquatMove = true;
+            }
         }
         else
         {
-            walk = false;
+            if (Input.GetKeyDown(KeyCode.F))
+            {
+               
+                if (Squat)
+                {
+                    this.transform.localScale = new Vector3(1.0f, 0.5f, 1.0f);
+                }
+                else
+                {
+                    this.transform.localScale = Vector3.one;
+                }
+                this.transform.position = posSave;
+                rb.useGravity = true;
+                tagChange = false;
+            }
         }
 
-        if (walk && Input.GetKey(KeyCode.LeftShift) && !Squat && !staminaOut)
-        {
-            m_ForwardSpeed = 10;
-            m_SideSpeed = 3;
-            m_BackSpeed = 3;
-            run = true;
-        }
-        else if (!Squat && !staminaOut)
-        {
-            m_ForwardSpeed = 6;
-            m_SideSpeed = 3;
-            m_BackSpeed = 3;
-            run = false;
-        }
-        else
-        {
-            run = false;
-        }
-
-        if (staminaOut)
+        if (staminaOut || tagChange)
         {
             m_ForwardSpeed = 2f;
             m_BackSpeed = 2f;
@@ -115,29 +176,15 @@ public class Player : MonoBehaviour
             {
                 staminaOut = false;
             }
+            if (stamina >= 10.0f)
+            {
+                stamina = 10.0f;
+            }
         }
 
         if (!staminaOut && !run && stamina <= 10.0f)
         {
             stamina += Time.deltaTime * 10 / staminaHealTime;
-        }
-
-        if (Input.GetKeyDown(KeyCode.C) && !staminaOut)
-        {
-            if (!Squat)
-            {
-                this.transform.position = new Vector3(
-                this.transform.position.x,
-                this.transform.position.y - 0.5f,
-                this.transform.position.z);
-            }
-            Squat = !Squat;
-            SquatMove = true;
-        }
-
-        if (Input.GetKeyDown(KeyCode.T))
-        {
-            tagChange = !tagChange;
         }
 
         if (tagChange)
@@ -149,26 +196,34 @@ public class Player : MonoBehaviour
             this.transform.tag = "Player";
         }
 
-        if (Input.GetKeyDown(KeyCode.F))
-        {
-            RaycastHit raycastHit;
-
-            bool hit = Physics.Raycast(m_Camera.transform.position, m_Camera.transform.forward, out raycastHit, 2.5f);
-            if (hit && raycastHit.collider.tag == "item")
-            {
-                raycastHit.collider.gameObject.SetActive(false);
-                Debug.Log(raycastHit.collider.gameObject.name + "‚ðE‚Á‚½"); //Œã‚ÅÁ‚·
-            }
-        }
-
         rb.linearVelocity = new Vector3(moveXZ.x, moveY, moveXZ.z);
 
-        this.transform.localEulerAngles = new Vector3(0, this.transform.localEulerAngles.y + Input.GetAxis("Mouse X") * m_RotationSpeed, 0);
+        if (!tagChange)
+        {
+            player_m = new Vector3(
+                0,
+                this.transform.localEulerAngles.y + Input.GetAxis("Mouse X") * m_RotationSpeed,
+                0);
 
-        camera_m = new Vector3(
-            Mathf.Clamp(camera_m.x - Input.GetAxis("Mouse Y") * m_RotationSpeed, -80f, 80f),
-            m_Camera.transform.localEulerAngles.y,
-            0f);
+            camera_m = new Vector3(
+                Mathf.Clamp(camera_m.x - Input.GetAxis("Mouse Y") * m_RotationSpeed, -80f, 80f),
+                m_Camera.transform.localEulerAngles.y,
+                0f);
+        }
+        else
+        {
+            player_m = new Vector3(
+                0, 
+                Mathf.Clamp(player_m.y + Input.GetAxis("Mouse X") * m_RotationSpeed,  dirStop - 30, dirStop + 30),
+                0f);
+
+            camera_m = new Vector3(
+               Mathf.Clamp(camera_m.x - Input.GetAxis("Mouse Y") * m_RotationSpeed, -30f, 20f),
+              m_Camera.transform.localEulerAngles.y,
+               0f);
+        }
+
+        this.transform.localEulerAngles = player_m;
         m_Camera.transform.localEulerAngles = camera_m;
 
         if (Squat && SquatMove)
