@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -24,6 +25,9 @@ public class Player : MonoBehaviour
     [SerializeField]
     private Camera m_Camera;
 
+    [SerializeField]
+    private Outline m_Enemy;
+
     Vector3 camera_m;
     Vector3 player_m;
 
@@ -35,6 +39,11 @@ public class Player : MonoBehaviour
     private bool Squat = false;
     private bool SquatMove = false;
 
+    [SerializeField]
+    private float staminaTime = 4.0f;
+    [SerializeField]
+    private float staminaHealTime = 3.0f;
+
     private float stamina = 10.0f;
     private bool staminaOut = false;
     private bool run = false;
@@ -45,10 +54,16 @@ public class Player : MonoBehaviour
     private Vector3 posSave = Vector3.zero;
     private float dirStop;
 
-    [SerializeField]
-    private float staminaTime = 4.0f;
-    [SerializeField]
-    private float staminaHealTime = 3.0f;
+    private int getItemID = 0;
+
+    private int item1Stock = 0;
+    private int item2Stock = 0;
+
+    private bool enemyOutline = false;
+    private float outlineTimer = 0;
+
+    private bool staminam = false;
+    private float staminamTimer = 0;
 
     private void Update()
     {
@@ -77,7 +92,7 @@ public class Player : MonoBehaviour
             if (Input.GetKey(KeyCode.W))
             {
                 moveXZ += this.transform.forward * m_ForwardSpeed;
-                if (run && !staminaOut)
+                if (run && !staminaOut && !staminam)
                 {
                     stamina -= Time.deltaTime * 10 / staminaTime;
                     if (stamina <= 0)
@@ -95,14 +110,38 @@ public class Player : MonoBehaviour
 
             if (Input.GetKeyDown(KeyCode.F))
             {
+
                 RaycastHit raycastHit;
 
                 bool hit = Physics.Raycast(m_Camera.transform.position, m_Camera.transform.forward, out raycastHit, 2.5f);
-                if (hit && raycastHit.collider.tag == "item")
+                if (hit && raycastHit.collider.tag == "item" && (item1Stock == 0 || item2Stock == 0))
                 {
                     raycastHit.collider.gameObject.SetActive(false);
                     Debug.Log(raycastHit.collider.gameObject.name + "を拾った"); //後で消す
+
+                    if (raycastHit.collider.name == "お札")
+                    {
+                        getItemID = 1;
+                    }
+                    if (raycastHit.collider.name == "スタミナム")
+                    {
+                        getItemID = 2;
+                    }
+
+                    if (item1Stock == 0)
+                    {
+                        item1Stock = getItemID;
+                    }
+                    else if (item2Stock == 0)
+                    {
+                        item2Stock = getItemID;
+                    }
                 }
+                else if (hit && raycastHit.collider.tag == "item" && item1Stock != 0 && item2Stock != 0)
+                {
+                    Debug.Log("これ以上アイテムを拾えません"); //後で消す
+                }
+
                 if (hit && raycastHit.collider.tag == "HideBox")
                 {
                     posSave = this.transform.position;
@@ -113,6 +152,30 @@ public class Player : MonoBehaviour
                     rb.useGravity = false;
                     tagChange = true;
                 }
+            }
+
+            if (Input.GetKeyDown(KeyCode.Alpha1))
+            {
+                if (item1Stock != 0)
+                {
+                    Item(item1Stock);
+                    item1Stock = 0;
+                }
+
+            }
+            if (Input.GetKeyDown(KeyCode.Alpha2))
+            {
+                if (item2Stock != 0)
+                {
+                    Item(item2Stock);
+                    item2Stock = 0;
+                }
+            }
+
+            // 後で消す
+            if (Input.GetKeyDown(KeyCode.I))
+            {
+                Debug.Log("Item1 : " + item1Stock + "  Item2 : " + item2Stock);
             }
 
             if (walk && Input.GetKey(KeyCode.LeftShift) && !Squat && !staminaOut)
@@ -151,7 +214,7 @@ public class Player : MonoBehaviour
         {
             if (Input.GetKeyDown(KeyCode.F))
             {
-               
+
                 if (Squat)
                 {
                     this.transform.localScale = new Vector3(1.0f, 0.5f, 1.0f);
@@ -164,6 +227,36 @@ public class Player : MonoBehaviour
                 rb.useGravity = true;
                 tagChange = false;
             }
+        }
+
+        if (enemyOutline)
+        {
+            m_Enemy.enabled = true;
+            outlineTimer += Time.deltaTime;
+
+            if (outlineTimer > 10)
+            {
+                enemyOutline = false;
+            }
+        }
+        else
+        {
+            m_Enemy.enabled = false;
+            outlineTimer = 0;
+        }
+
+        if (staminam)
+        {
+            staminamTimer += Time.deltaTime;
+
+            if (staminamTimer > 10)
+            {
+                staminam = false;
+            }
+        }
+        else
+        {
+            staminamTimer = 0;
         }
 
         if (staminaOut || tagChange)
@@ -213,8 +306,8 @@ public class Player : MonoBehaviour
         else
         {
             player_m = new Vector3(
-                0, 
-                Mathf.Clamp(player_m.y + Input.GetAxis("Mouse X") * m_RotationSpeed,  dirStop - 30, dirStop + 30),
+                0,
+                Mathf.Clamp(player_m.y + Input.GetAxis("Mouse X") * m_RotationSpeed, dirStop - 30, dirStop + 30),
                 0f);
 
             camera_m = new Vector3(
@@ -290,5 +383,18 @@ public class Player : MonoBehaviour
     public bool staminaOutbool()
     {
         return staminaOut;
+    }
+
+    private void Item(int i)
+    {
+        if (i == 1)
+        {
+            enemyOutline = true;
+        }
+        
+        if (i == 2)
+        {
+            staminam = true;
+        }
     }
 }
