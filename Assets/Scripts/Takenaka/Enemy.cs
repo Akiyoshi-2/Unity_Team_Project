@@ -76,16 +76,39 @@ public class Enemy : MonoBehaviour
 
     void Start()
     {
+        /* agent = GetComponent<NavMeshAgent>();
+         agent.stoppingDistance = stopDistance;
+         agent.speed = patrolSpeed;
+
+         patrolPoints.Clear();
+         foreach (GameObject point in GameObject.FindGameObjectsWithTag("PatrolPoints"))
+             patrolPoints.Add(point.transform);
+
+         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
+         if (playerObj != null) playerTransform = playerObj.transform;*/
+        // NavMeshAgentの取得
         agent = GetComponent<NavMeshAgent>();
+
+        // 初期速度を徘徊速度に設定
         agent.stoppingDistance = stopDistance;
-        agent.speed = patrolSpeed;
 
+        // タグ参照による自動取得
+        GameObject[] foundPoints = GameObject.FindGameObjectsWithTag("PatrolPoints");
+
+        // 既存のポイントをクリアしてから追加
         patrolPoints.Clear();
-        foreach (GameObject point in GameObject.FindGameObjectsWithTag("PatrolPoints"))
-            patrolPoints.Add(point.transform);
 
-        GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
-        if (playerObj != null) playerTransform = playerObj.transform;
+        // 見つかったポイントをリストに追加
+        foreach (GameObject point in foundPoints)
+        {
+            patrolPoints.Add(point.transform);
+        }
+
+        // プレイヤーの初期位置を取得
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
+
+        // プレイヤーが見つかった場合のみTransformを取得
+        if (player != null) playerTransform = player.transform;
     }
 
     void Update()
@@ -320,17 +343,43 @@ public class Enemy : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
+        // 1. タグチェック
         if (other.CompareTag("Player"))
         {
-            Debug.Log("プレイヤーを捕まえました！");
+            Debug.Log("プレイヤーを接触検知！");
+
+            // 2. プレイヤーを破壊
             Destroy(other.gameObject);
+
+            // 3. 内部変数のクリア
             playerTransform = null;
-            TransitionToPatrol();
+
+            // 4. 重要：状態を徘徊に強制的に戻す
+            TransitionToPatrolInternal();
+
+            // 5. 速度を徘徊用に戻す
+            agent.speed = patrolSpeed;
+        }
+    }
+
+    // ==================== 状態遷移の補強 ====================
+
+    private void TransitionToPatrolInternal()
+    {
+        ResetLookAround();
+        currentState = EnemyState.Patrol;
+        agent.speed = patrolSpeed;
+        patrolTimer = 0f;
+
+        // 目的地をリセット（その場で立ち止まらないように）
+        if (patrolPoints.Count > 0)
+        {
+            currentPatrolIndex = GetNearestPatrolPointIndex();
+            agent.SetDestination(patrolPoints[currentPatrolIndex].position);
         }
     }
 
     // ==================== ユーティリティ ====================
-
     private void TryRefindPlayer()
     {
         if (playerTransform == null)
