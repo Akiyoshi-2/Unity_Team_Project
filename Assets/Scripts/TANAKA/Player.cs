@@ -36,6 +36,8 @@ public class Player : MonoBehaviour
     private float m_SideSpeed = 3f;
     private float m_RotationSpeed = 2f;
 
+    private int playerMoveFlg = 0;
+
     private bool Squat = false;
     private bool SquatMove = false;
 
@@ -248,6 +250,14 @@ public class Player : MonoBehaviour
         if (staminam)
         {
             staminamTimer += Time.deltaTime;
+            staminaOut = false;
+
+            stamina += Time.deltaTime * 10;
+
+            if (stamina >= 10.0f)
+            {
+                stamina = 10.0f;
+            }
 
             if (staminamTimer > 10)
             {
@@ -259,7 +269,7 @@ public class Player : MonoBehaviour
             staminamTimer = 0;
         }
 
-        if (staminaOut || tagChange)
+        if ((staminaOut || tagChange) && !staminam)
         {
             m_ForwardSpeed = 2f;
             m_BackSpeed = 2f;
@@ -275,7 +285,7 @@ public class Player : MonoBehaviour
             }
         }
 
-        if (!staminaOut && !run && stamina <= 10.0f)
+        if (!staminaOut && !run && stamina <= 10.0f && !staminam)
         {
             stamina += Time.deltaTime * 10 / staminaHealTime;
         }
