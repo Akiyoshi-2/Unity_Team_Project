@@ -1,412 +1,244 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using UnityEngine.AI;
 using System.Collections.Generic;
+using System.Collections;
 
-/// <summary>
-/// ‹üƒx[ƒX‚Ì’ÇÕ“GAIƒNƒ‰ƒX
-///
-/// “®ìd—l:
-/// 1. y‹”FŒŸ’mz •Ç‰z‚µ‚ÉƒvƒŒƒCƒ„[‚ğŒŸ’m‚µ‚È‚¢B‹–ìŠp“à‚©‚ÂRaycast‚ÅÕ•Á‚È‚µ‚Ìê‡‚Ì‚İ’ÇÕŠJn
-/// 2. y‹üƒƒXƒgz ƒvƒŒƒCƒ„[‚ğ•Ç‚È‚Ç‚ÅŒ©¸‚Á‚½ê‡AÅŒã‚ÉŒ©‚½À•W‚Ü‚ÅˆÚ“®‚ğ‘±‚¯‚é
-/// 3. y“’BŒã‚Ì‘{õz ÅI–Ú‹’n“_‚É“’BŒãA¶‰E‚ÉŒ©‰ñ‚µ‚È‚ª‚çüˆÍ‚ğƒXƒLƒƒƒ“B
-///    ƒvƒŒƒCƒ„[‚ªŒ©‚¦‚ê‚Î’ÇÕÄŠJAŒ©‚¦‚È‚¯‚ê‚Îœpœj‚É–ß‚é
-/// </summary>
 [RequireComponent(typeof(NavMeshAgent))]
 public class Enemy : MonoBehaviour
 {
-    // ==================== Inspectorİ’è ====================
-
-    [Header("’ÇÕİ’è")]
-    [SerializeField] private float detectionRange = 10f;
-    [SerializeField] private float fieldOfViewAngle = 90f;
-    [SerializeField] private float stopDistance = 0.1f;
-    [SerializeField] private float chaseSpeed = 30f;
+    [Header("è¿½è·¡è¨­å®š")]
+    [SerializeField] private float detectionRange = 15f;
+    [SerializeField] private float viewAngle = 90f;
+    [SerializeField] private float chaseSpeed = 5f;
     [SerializeField] private LayerMask obstacleMask;
 
-    [Header("‹üƒƒXƒgŒã‚Ìİ’è")]
-    [SerializeField] private float searchWaitTime = 3f;        // Œ©‰ñ‚µŠÜ‚Ş‘‘{õŠÔ
-    [SerializeField] private float overshootDistance = 5f;     // Œ©¸‚Á‚½Œã‚³‚ç‚Éi‚Ş‹——£
+    [Header("è¦‹å¤±ã£ãŸå¾Œã®äºˆæ¸¬ãƒ»æ¤œç´¢æŒ™å‹•")]
+    [SerializeField] private float predictionDistance = 3f; // æœ€å¾Œã«è¦‹ãŸå ´æ‰€ã‹ã‚‰ã©ã‚Œãã‚‰ã„è¸ã¿è¾¼ã‚€ã‹
+    [SerializeField] private float searchTime = 4f;
+    [SerializeField] private float lookAngle = 60f;
+    [SerializeField] private float lookSpeed = 2f;
 
-    [Header("Œ©‰ñ‚µİ’è")]
-    [SerializeField] private float lookAngle = 60f;            // ¶‰E‚»‚ê‚¼‚ê‰½“xU‚é‚©
-    [SerializeField] private float lookSpeed = 60f;            // Œ©‰ñ‚µ‘¬“xi“x/•bj
-
-    [Header("œpœjİ’è")]
-    [SerializeField] private float patrolSpeed = 10f;
+    [Header("å¾˜å¾Šè¨­å®š")]
+    [SerializeField] private float patrolSpeed = 2.5f;
     [SerializeField] private float waitTimeAtPoint = 2f;
     [SerializeField] private List<Transform> patrolPoints = new List<Transform>();
 
-    // ==================== “à•”ó‘Ô ====================
-
-    private enum EnemyState
-    {
-        Patrol,
-        Chase,
-        SearchLastPos,
-    }
-
-    // Œ©‰ñ‚µ‚ÌƒtƒF[ƒY
-    private enum LookPhase
-    {
-        TurnLeft,   // ¶‚ÖU‚é
-        TurnRight,  // ‰E‚ÖU‚éi¶’[ ¨ ‰E’[j
-        TurnCenter, // ’†‰›‚Ö–ß‚é
-        Done,       // Š®—¹
-    }
+    [Header("ãƒã‚¤ã‚ºæ¼”å‡ºè¨­å®š")]
+    [SerializeField] private float glitchDuration = 0.3f;
+    [SerializeField] private float shakeIntensity = 0.5f;
+    [SerializeField] private float stretchIntensity = 2.0f;
 
     private NavMeshAgent agent;
     private Transform playerTransform;
-    private EnemyState currentState = EnemyState.Patrol;
+    private Vector3 targetSearchPosition; // äºˆæ¸¬ã‚’å«ã‚ãŸæœ€çµ‚ç›®çš„åœ°
 
-    // œpœj
-    private int currentPatrolIndex = 0;
-    private float patrolTimer = 0f;
+    private enum State { Patrolling, Chasing, Searching }
+    private State currentState = State.Patrolling;
 
-    // ‘{õ
-    private Vector3 lastKnownPlayerPosition;
+    private bool isPlayerVisible = false;
     private float searchTimer = 0f;
-
-    // Œ©‰ñ‚µ
-    private LookPhase lookPhase = LookPhase.Done;
-    private float arrivalYaw;       // ÅI–Ú‹’n“_“’B‚ÌŒü‚«iY²‰ñ“]j
-    private float currentLookYaw;   // Œ»İ‚ÌŒ©‰ñ‚µ’†‚ÌYawŠp“x
-    private float targetLookYaw;    // Œ»İƒtƒF[ƒY‚Ì–Ú•WYawŠp“x
-
-    // ==================== Unity ƒ‰ƒCƒtƒTƒCƒNƒ‹ ====================
+    private float patrolTimer = 0f;
+    private int currentPatrolIndex = 0;
 
     void Start()
     {
-        /* agent = GetComponent<NavMeshAgent>();
-         agent.stoppingDistance = stopDistance;
-         agent.speed = patrolSpeed;
-
-         patrolPoints.Clear();
-         foreach (GameObject point in GameObject.FindGameObjectsWithTag("PatrolPoints"))
-             patrolPoints.Add(point.transform);
-
-         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
-         if (playerObj != null) playerTransform = playerObj.transform;*/
-        // NavMeshAgent‚Ìæ“¾
         agent = GetComponent<NavMeshAgent>();
+        agent.stoppingDistance = 0.1f;
 
-        // ‰Šú‘¬“x‚ğœpœj‘¬“x‚Éİ’è
-        agent.stoppingDistance = stopDistance;
-
-        // ƒ^ƒOQÆ‚É‚æ‚é©“®æ“¾
         GameObject[] foundPoints = GameObject.FindGameObjectsWithTag("PatrolPoints");
-
-        // Šù‘¶‚Ìƒ|ƒCƒ“ƒg‚ğƒNƒŠƒA‚µ‚Ä‚©‚ç’Ç‰Á
         patrolPoints.Clear();
+        foreach (GameObject point in foundPoints) patrolPoints.Add(point.transform);
 
-        // Œ©‚Â‚©‚Á‚½ƒ|ƒCƒ“ƒg‚ğƒŠƒXƒg‚É’Ç‰Á
-        foreach (GameObject point in foundPoints)
-        {
-            patrolPoints.Add(point.transform);
-        }
-
-        // ƒvƒŒƒCƒ„[‚Ì‰ŠúˆÊ’u‚ğæ“¾
-        GameObject player = GameObject.FindGameObjectWithTag("Player");
-
-        // ƒvƒŒƒCƒ„[‚ªŒ©‚Â‚©‚Á‚½ê‡‚Ì‚İTransform‚ğæ“¾
-        if (player != null) playerTransform = player.transform;
+        FindPlayer();
     }
 
     void Update()
     {
-        TryRefindPlayer();
+        if (playerTransform == null)
+        {
+            FindPlayer();
+            if (playerTransform == null) return;
+        }
+
+        CheckVisibility();
 
         switch (currentState)
         {
-            case EnemyState.Patrol: UpdatePatrolState(); break;
-            case EnemyState.Chase: UpdateChaseState(); break;
-            case EnemyState.SearchLastPos: UpdateSearchLastPosState(); break;
+            case State.Patrolling:
+                PatrolLogic();
+                break;
+            case State.Chasing:
+                ChaseLogic();
+                break;
+            case State.Searching:
+                SearchLogic();
+                break;
         }
     }
 
-    // ==================== ó‘Ô•ÊXV ====================
-
-    private void UpdatePatrolState()
+    void CheckVisibility()
     {
-        agent.speed = patrolSpeed;
-        if (CanSeePlayer()) { TransitionToChase(); return; }
-        if (patrolPoints.Count > 0) Patrol();
-    }
+        float distanceToPlayer = Vector3.Distance(transform.position, playerTransform.position);
+        bool wasVisible = isPlayerVisible;
+        isPlayerVisible = false;
 
-    private void UpdateChaseState()
-    {
-        agent.speed = chaseSpeed;
-        if (CanSeePlayer())
+        if (distanceToPlayer <= detectionRange)
         {
-            lastKnownPlayerPosition = playerTransform.position;
-            agent.SetDestination(playerTransform.position);
-        }
-        else
-        {
-            Debug.Log("ƒvƒŒƒCƒ„[‚ğŒ©¸‚¢‚Ü‚µ‚½BÅŒã‚ÌˆÊ’u‚ÖŒü‚©‚¢‚Ü‚·: " + lastKnownPlayerPosition);
-            TransitionToSearchLastPos();
-        }
-    }
+            Vector3 dirToPlayer = (playerTransform.position - transform.position).normalized;
+            float angleToPlayer = Vector3.Angle(transform.forward, dirToPlayer);
 
-    private void UpdateSearchLastPosState()
-    {
-        agent.speed = chaseSpeed;
-
-        // ˆÚ“®’†‚Å‚à‹ü‚ª’Ê‚ê‚Î’ÇÕÄŠJ
-        if (CanSeePlayer())
-        {
-            Debug.Log("ˆÚ“®’†‚ÉƒvƒŒƒCƒ„[‚ğÄ”­Œ©I’ÇÕÄŠJ");
-            TransitionToChase();
-            return;
-        }
-
-        bool arrivedAtLastPos = !agent.pathPending && agent.remainingDistance <= agent.stoppingDistance + 0.5f;
-
-        if (!arrivedAtLastPos) return; // ‚Ü‚¾ˆÚ“®’†
-
-        // „Ÿ„Ÿ “’BŒãFŒ©‰ñ‚µ‘{õƒtƒF[ƒY „Ÿ„Ÿ
-
-        // Œ©‰ñ‚µ‚ğ‚Ü‚¾ŠJn‚µ‚Ä‚¢‚È‚¯‚ê‚Î‰Šú‰»
-        if (lookPhase == LookPhase.Done && searchTimer == 0f)
-            StartLookAround();
-
-        // Œ©‰ñ‚µ’†‚Ì‰ñ“]ˆ—
-        if (lookPhase != LookPhase.Done)
-            UpdateLookAround();
-
-        // ‘‘{õŠÔ‚ÌƒJƒEƒ“ƒg
-        searchTimer += Time.deltaTime;
-
-        // ‹üƒ`ƒFƒbƒNiŒ©‰ñ‚µ’†‚à–ˆƒtƒŒ[ƒ€”»’èj
-        if (CanSeePlayer())
-        {
-            Debug.Log("‘{õ’†‚ÉƒvƒŒƒCƒ„[‚ğÄ”­Œ©I’ÇÕÄŠJ");
-            TransitionToChase();
-            return;
-        }
-
-        // ŠÔØ‚ê ¨ œpœj‚Ö
-        if (searchTimer >= searchWaitTime)
-        {
-            Debug.Log("ƒvƒŒƒCƒ„[‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñ‚Å‚µ‚½Bœpœj‚É–ß‚è‚Ü‚·");
-            TransitionToPatrol();
-        }
-    }
-
-    // ==================== Œ©‰ñ‚µˆ— ====================
-
-    /// <summary>Œ©‰ñ‚µŠJnF“’B‚ÌŒü‚«‚ğŠî€‚Æ‚µ‚Ä¶‰EƒtƒF[ƒY‚ğİ’è</summary>
-    private void StartLookAround()
-    {
-        arrivalYaw = transform.eulerAngles.y;
-        currentLookYaw = arrivalYaw;
-        lookPhase = LookPhase.TurnLeft;
-        targetLookYaw = arrivalYaw - lookAngle; // ‚Ü‚¸¶‚Ö
-        agent.updateRotation = false;            // NavMesh‚Ì©“®‰ñ“]‚ğOFF
-    }
-
-    /// <summary>–ˆƒtƒŒ[ƒ€ŒÄ‚Î‚ê‚éŒ©‰ñ‚µ‰ñ“]ˆ—</summary>
-    private void UpdateLookAround()
-    {
-        // –Ú•WYaw‚ÖŒü‚¯‚ÄlookSpeed‚Å‰ñ“]
-        currentLookYaw = Mathf.MoveTowards(currentLookYaw, targetLookYaw, lookSpeed * Time.deltaTime);
-        transform.rotation = Quaternion.Euler(0f, currentLookYaw, 0f);
-
-        // –Ú•WŠp“x‚É“’B‚µ‚½‚çŸ‚ÌƒtƒF[ƒY‚Ö
-        if (Mathf.Approximately(currentLookYaw, targetLookYaw))
-        {
-            switch (lookPhase)
+            if (angleToPlayer < viewAngle / 2f)
             {
-                case LookPhase.TurnLeft:
-                    // ¶’[ ¨ ‰E’[‚Öi¶’[‚©‚ç‰E’[‚È‚Ì‚ÅŠp“x·‚Í lookAngle * 2j
-                    lookPhase = LookPhase.TurnRight;
-                    targetLookYaw = arrivalYaw + lookAngle;
-                    break;
+                if (!Physics.Raycast(transform.position + Vector3.up, dirToPlayer, distanceToPlayer, obstacleMask))
+                {
+                    isPlayerVisible = true;
 
-                case LookPhase.TurnRight:
-                    // ‰E’[ ¨ ’†‰›‚Ö–ß‚é
-                    lookPhase = LookPhase.TurnCenter;
-                    targetLookYaw = arrivalYaw;
-                    break;
+                    if (!wasVisible)
+                    {
+                        currentState = State.Chasing;
+                        agent.isStopped = false;
+                        StartCoroutine(PlayHardGlitch());
+                    }
+                }
+            }
+        }
 
-                case LookPhase.TurnCenter:
-                    // Œ©‰ñ‚µŠ®—¹
-                    lookPhase = LookPhase.Done;
-                    agent.updateRotation = true; // NavMesh‚Ì©“®‰ñ“]‚ğ–ß‚·
-                    break;
+        // è¿½è·¡ä¸­ã«è¦‹å¤±ã£ãŸç¬é–“ã®å‡¦ç†
+        if (!isPlayerVisible && currentState == State.Chasing)
+        {
+            currentState = State.Searching;
+            searchTimer = 0f;
+            agent.isStopped = false;
+
+            // --- äºˆæ¸¬åœ°ç‚¹ã®è¨ˆç®— ---
+            // æ•µã‹ã‚‰ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã¸ã®æ–¹å‘ã‚’è¨ˆç®—
+            Vector3 jumpDir = (playerTransform.position - transform.position).normalized;
+            // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®ä½ç½®ã‹ã‚‰ã•ã‚‰ã« predictionDistance åˆ†ã ã‘å…ˆã«ç›®çš„åœ°ã‚’ç½®ã
+            Vector3 rawPredictedPos = playerTransform.position + jumpDir * predictionDistance;
+
+            // äºˆæ¸¬åœ°ç‚¹ãŒå£ã®ä¸­ã ã£ãŸå ´åˆã€æœ€ã‚‚è¿‘ã„ã€Œæ­©ã‘ã‚‹å ´æ‰€ã€ã«è£œæ­£ã™ã‚‹
+            NavMeshHit hit;
+            if (NavMesh.SamplePosition(rawPredictedPos, out hit, predictionDistance + 1f, NavMesh.AllAreas))
+            {
+                targetSearchPosition = hit.position;
+            }
+            else
+            {
+                targetSearchPosition = playerTransform.position;
+            }
+
+            agent.SetDestination(targetSearchPosition);
+        }
+    }
+
+    void ChaseLogic()
+    {
+        agent.speed = chaseSpeed;
+        agent.SetDestination(playerTransform.position);
+    }
+
+    void SearchLogic()
+    {
+        agent.speed = chaseSpeed;
+
+        if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
+        {
+            agent.isStopped = true;
+            searchTimer += Time.deltaTime;
+
+            float angle = Mathf.Sin(Time.time * lookSpeed) * lookAngle;
+            transform.rotation = Quaternion.Euler(0, transform.eulerAngles.y + angle * Time.deltaTime, 0);
+
+            if (searchTimer >= searchTime)
+            {
+                agent.isStopped = false;
+                currentState = State.Patrolling;
             }
         }
     }
 
-    /// <summary>Œ©‰ñ‚µó‘Ô‚ğƒŠƒZƒbƒgi‘¼ó‘Ô‚Ö‘JˆÚ‚·‚é‚Æ‚«‚ÉŒÄ‚Ôj</summary>
-    private void ResetLookAround()
+    void PatrolLogic()
     {
-        lookPhase = LookPhase.Done;
-        agent.updateRotation = true;
-    }
-
-    // ==================== ó‘Ô‘JˆÚ ====================
-
-    private void TransitionToChase()
-    {
-        ResetLookAround();
-        currentState = EnemyState.Chase;
-        lastKnownPlayerPosition = playerTransform.position;
-        agent.speed = chaseSpeed;
-        agent.SetDestination(playerTransform.position);
-        Debug.Log("ƒvƒŒƒCƒ„[‚ğ‹”FI’ÇÕŠJn");
-    }
-
-    private void TransitionToSearchLastPos()
-    {
-        ResetLookAround();
-        currentState = EnemyState.SearchLastPos;
-        searchTimer = 0f;
-
-        // Œ©¸‚Á‚½uŠÔ‚Ì“G¨ƒvƒŒƒCƒ„[•ûŒü‚Ö overshootDistance ‚¾‚¯æ‚Ì’n“_‚ğ–Ú•W‚É‚·‚é
-        Vector3 lostDirection = (lastKnownPlayerPosition - transform.position).normalized;
-        Vector3 overshootTarget = lastKnownPlayerPosition + lostDirection * overshootDistance;
-
-        // NavMeshã‚Ì—LŒø‚È’n“_‚ÉŠÛ‚ß‚éi•Ç‚Ì’†‚É“ü‚ç‚È‚¢‚æ‚¤j
-        if (NavMesh.SamplePosition(overshootTarget, out NavMeshHit navHit, overshootDistance, NavMesh.AllAreas))
-            agent.SetDestination(navHit.position);
-        else
-            agent.SetDestination(lastKnownPlayerPosition); // —LŒø’n“_‚ªæ‚ê‚È‚¯‚ê‚ÎÅI–Ú‹’n“_‚Ö
-    }
-
-    private void TransitionToPatrol()
-    {
-        ResetLookAround();
-        currentState = EnemyState.Patrol;
         agent.speed = patrolSpeed;
-        patrolTimer = 0f;
+        if (patrolPoints.Count == 0) return;
 
-        if (patrolPoints.Count > 0)
+        if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
         {
-            currentPatrolIndex = GetNearestPatrolPointIndex();
-            agent.SetDestination(patrolPoints[currentPatrolIndex].position);
-        }
-    }
-
-    // ==================== ‹ü”»’è ====================
-
-    private bool CanSeePlayer()
-    {
-        if (playerTransform == null) return false;
-
-        Vector3 directionToPlayer = playerTransform.position - transform.position;
-        float distanceToPlayer = directionToPlayer.magnitude;
-
-        if (distanceToPlayer > detectionRange) return false;
-
-        float angle = Vector3.Angle(transform.forward, directionToPlayer);
-        if (angle > fieldOfViewAngle / 2f) return false;
-
-        Vector3 eyePosition = transform.position + Vector3.up * 1.0f;
-        Vector3 playerCenter = playerTransform.position + Vector3.up * 1.0f;
-
-        if (Physics.Raycast(eyePosition, (playerCenter - eyePosition).normalized,
-                            out RaycastHit hit, distanceToPlayer, obstacleMask))
-            return false;
-
-        return true;
-    }
-
-    // ==================== œpœjˆ— ====================
-
-    private void Patrol()
-    {
-        if (!agent.pathPending && agent.remainingDistance < 0.5f)
-        {
+            agent.isStopped = true;
             patrolTimer += Time.deltaTime;
+
             if (patrolTimer >= waitTimeAtPoint)
             {
                 currentPatrolIndex = (currentPatrolIndex + 1) % patrolPoints.Count;
+                agent.isStopped = false;
                 agent.SetDestination(patrolPoints[currentPatrolIndex].position);
                 patrolTimer = 0f;
             }
         }
-    }
-
-    private int GetNearestPatrolPointIndex()
-    {
-        int nearestIndex = 0;
-        float nearestDistance = float.MaxValue;
-        for (int i = 0; i < patrolPoints.Count; i++)
+        else
         {
-            float d = Vector3.Distance(transform.position, patrolPoints[i].position);
-            if (d < nearestDistance) { nearestDistance = d; nearestIndex = i; }
+            agent.isStopped = false;
         }
-        return nearestIndex;
     }
 
-    // ==================== ƒvƒŒƒCƒ„[•ß‘¨ ====================
+    // --- Glitchæ¼”å‡ºã‚³ãƒ«ãƒ¼ãƒãƒ³ï¼ˆä»¥å‰ã®ã¾ã¾ï¼‰ ---
+    IEnumerator PlayHardGlitch()
+    {
+        Camera cam = Camera.main;
+        if (cam == null) yield break;
+
+        float originalAspect = cam.aspect;
+        float originalFOV = cam.fieldOfView;
+        Vector3 originalLocalPos = cam.transform.localPosition;
+        Quaternion originalLocalRot = cam.transform.localRotation;
+
+        float elapsed = 0f;
+        while (elapsed < glitchDuration)
+        {
+            cam.transform.localPosition = originalLocalPos + Random.insideUnitSphere * shakeIntensity;
+            cam.aspect = originalAspect * Random.Range(1f / stretchIntensity, stretchIntensity);
+            cam.fieldOfView = originalFOV + Random.Range(-15f, 15f);
+            elapsed += Time.unscaledDeltaTime;
+            yield return null;
+        }
+
+        cam.ResetAspect();
+        cam.fieldOfView = originalFOV;
+        cam.transform.localPosition = originalLocalPos;
+        cam.transform.localRotation = originalLocalRot;
+    }
+
+    void FindPlayer()
+    {
+        GameObject p = GameObject.FindGameObjectWithTag("Player");
+        if (p != null) playerTransform = p.transform;
+    }
 
     private void OnTriggerEnter(Collider other)
     {
-        // 1. ƒ^ƒOƒ`ƒFƒbƒN
         if (other.CompareTag("Player"))
         {
-            Debug.Log("ƒvƒŒƒCƒ„[‚ğÚGŒŸ’mI");
-
-            // 2. ƒvƒŒƒCƒ„[‚ğ”j‰ó
             Destroy(other.gameObject);
-
-            // 3. “à•”•Ï”‚ÌƒNƒŠƒA
             playerTransform = null;
-
-            // 4. d—vFó‘Ô‚ğœpœj‚É‹­§“I‚É–ß‚·
-            TransitionToPatrolInternal();
-
-            // 5. ‘¬“x‚ğœpœj—p‚É–ß‚·
-            agent.speed = patrolSpeed;
+            currentState = State.Patrolling;
         }
     }
-
-    // ==================== ó‘Ô‘JˆÚ‚Ì•â‹­ ====================
-
-    private void TransitionToPatrolInternal()
-    {
-        ResetLookAround();
-        currentState = EnemyState.Patrol;
-        agent.speed = patrolSpeed;
-        patrolTimer = 0f;
-
-        // –Ú“I’n‚ğƒŠƒZƒbƒgi‚»‚Ìê‚Å—§‚¿~‚Ü‚ç‚È‚¢‚æ‚¤‚Éj
-        if (patrolPoints.Count > 0)
-        {
-            currentPatrolIndex = GetNearestPatrolPointIndex();
-            agent.SetDestination(patrolPoints[currentPatrolIndex].position);
-        }
-    }
-
-    // ==================== ƒ†[ƒeƒBƒŠƒeƒB ====================
-    private void TryRefindPlayer()
-    {
-        if (playerTransform == null)
-        {
-            GameObject p = GameObject.FindGameObjectWithTag("Player");
-            if (p != null) playerTransform = p.transform;
-        }
-    }
-
-    // ==================== ƒfƒoƒbƒO•`‰æ ====================
 
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position, detectionRange);
 
-        Gizmos.color = Color.yellow;
-        Vector3 left = Quaternion.AngleAxis(-fieldOfViewAngle / 2f, Vector3.up) * transform.forward;
-        Vector3 right = Quaternion.AngleAxis(fieldOfViewAngle / 2f, Vector3.up) * transform.forward;
-        Gizmos.DrawRay(transform.position, left * detectionRange);
-        Gizmos.DrawRay(transform.position, right * detectionRange);
+        Vector3 leftDir = Quaternion.Euler(0, -viewAngle / 2f, 0) * transform.forward;
+        Vector3 rightDir = Quaternion.Euler(0, viewAngle / 2f, 0) * transform.forward;
+        Gizmos.DrawLine(transform.position, transform.position + leftDir * detectionRange);
+        Gizmos.DrawLine(transform.position, transform.position + rightDir * detectionRange);
 
-        if (currentState == EnemyState.SearchLastPos || currentState == EnemyState.Chase)
+        // äºˆæ¸¬ç›®çš„åœ°ã‚’é’ã„çƒã§è¡¨ç¤ºï¼ˆãƒ‡ãƒãƒƒã‚°ç”¨ï¼‰
+        if (currentState == State.Searching)
         {
             Gizmos.color = Color.blue;
-            Gizmos.DrawSphere(lastKnownPlayerPosition, 0.4f);
-            Gizmos.DrawLine(transform.position, lastKnownPlayerPosition);
+            Gizmos.DrawSphere(targetSearchPosition, 0.5f);
         }
     }
 }
