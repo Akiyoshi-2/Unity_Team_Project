@@ -15,6 +15,7 @@ GameObject:
   - component: {fileID: 5280740099403862455}
   - component: {fileID: 8094593310961676960}
   - component: {fileID: 4319111415681729362}
+  - component: {fileID: 6251322287203368414}
   m_Layer: 0
   m_Name: Enemy
   m_TagString: Untagged
@@ -190,3 +191,21 @@ MonoBehaviour:
   patrolSpeed: 5
   waitTimeAtPoint: 0
   patrolPoints: []
+--- !u!114 &6251322287203368414
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4731037654473082604}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Outline
+  outlineMode: 2
+  outlineColor: {r: 0, g: 0, b: 0, a: 1}
+  outlineWidth: 3
+  precomputeOutline: 0
+  bakeKeys: []
+  bakeValues: []
