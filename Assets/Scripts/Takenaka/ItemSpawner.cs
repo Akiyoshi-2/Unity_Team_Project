@@ -21,7 +21,7 @@ public class ItemSpawner : MonoBehaviour
             GameObject prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(path);
 
             // Itemタグが付いているものだけをリストに追加
-            if (prefab != null && prefab.CompareTag("Item"))
+            if (prefab != null && prefab.CompareTag("item"))
             {
                 if (!itemPrefabs.Contains(prefab))
                 {
@@ -44,7 +44,7 @@ public class ItemSpawner : MonoBehaviour
         GameObject selectedPrefab = itemPrefabs[randomIndex];
 
         // 選択されたプレハブをスポーン
-        if (selectedPrefab.CompareTag("Item"))
+        if (selectedPrefab.CompareTag("item"))
         {
             Instantiate(selectedPrefab, transform.position, transform.rotation);
         }
