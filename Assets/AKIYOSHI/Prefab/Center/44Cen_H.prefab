@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 4288542688619620789}
   - component: {fileID: 6062474671053447965}
   - component: {fileID: 8061629834486643991}
-  - component: {fileID: 4865954677387431813}
+  - component: {fileID: 1043650332026544584}
   m_Layer: 0
   m_Name: Floor (3)
   m_TagString: Untagged
@@ -113,7 +113,7 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &4865954677387431813
+--- !u!114 &1043650332026544584
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -141,9 +141,9 @@ MonoBehaviour:
   m_OverrideTileSize: 0
   m_TileSize: 256
   m_OverrideVoxelSize: 0
-  m_VoxelSize: 0.16666667
+  m_VoxelSize: 0.06666667
   m_MinRegionArea: 2
-  m_NavMeshData: {fileID: 23800000, guid: 5a8f7ac368a3e0146becf871209373a6, type: 2}
+  m_NavMeshData: {fileID: 23800000, guid: a46f6da4a82739c478b15bca7ff6598d, type: 2}
   m_BuildHeightMesh: 0
 --- !u!1 &3429999195228134886
 GameObject:
@@ -157,7 +157,7 @@ GameObject:
   - component: {fileID: 6565394756884274391}
   - component: {fileID: 7022754663309258402}
   - component: {fileID: 5177327001677138290}
-  - component: {fileID: 7314241033342205324}
+  - component: {fileID: 8244915432434203358}
   m_Layer: 0
   m_Name: Floor (2)
   m_TagString: Untagged
@@ -258,7 +258,7 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &7314241033342205324
+--- !u!114 &8244915432434203358
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -286,9 +286,9 @@ MonoBehaviour:
   m_OverrideTileSize: 0
   m_TileSize: 256
   m_OverrideVoxelSize: 0
-  m_VoxelSize: 0.16666667
+  m_VoxelSize: 0.06666667
   m_MinRegionArea: 2
-  m_NavMeshData: {fileID: 23800000, guid: a1f36ae33a3b6a446b2eaa2055f322d8, type: 2}
+  m_NavMeshData: {fileID: 23800000, guid: 9ccd58120b34ed64faf762b954a71a32, type: 2}
   m_BuildHeightMesh: 0
 --- !u!1 &6421266951781678124
 GameObject:
@@ -302,7 +302,7 @@ GameObject:
   - component: {fileID: 8801187017592441858}
   - component: {fileID: 9186404480750380114}
   - component: {fileID: 4942609097392011461}
-  - component: {fileID: 3350364425690056168}
+  - component: {fileID: 708315221744625068}
   m_Layer: 0
   m_Name: Floor
   m_TagString: Untagged
@@ -319,8 +319,8 @@ Transform:
   m_GameObject: {fileID: 6421266951781678124}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -6.5}
-  m_LocalScale: {x: 46, y: 0.1, z: 33}
+  m_LocalPosition: {x: 0, y: 0, z: -6}
+  m_LocalScale: {x: 44, y: 0.1, z: 32}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2190138439206079582}
@@ -403,7 +403,7 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &3350364425690056168
+--- !u!114 &708315221744625068
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -431,7 +431,7 @@ MonoBehaviour:
   m_OverrideTileSize: 0
   m_TileSize: 256
   m_OverrideVoxelSize: 0
-  m_VoxelSize: 0.16666667
+  m_VoxelSize: 0.06666667
   m_MinRegionArea: 2
   m_NavMeshData: {fileID: 23800000, guid: 377934a6cc0a1f84aa18f934dacf01ee, type: 2}
   m_BuildHeightMesh: 0
@@ -447,7 +447,7 @@ GameObject:
   - component: {fileID: 2668626072395207853}
   - component: {fileID: 7682486895316818105}
   - component: {fileID: 5904994597767488739}
-  - component: {fileID: 8537661834670513899}
+  - component: {fileID: 1900788347318729728}
   m_Layer: 0
   m_Name: Floor (1)
   m_TagString: Untagged
@@ -464,8 +464,8 @@ Transform:
   m_GameObject: {fileID: 7769881509521581335}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 18.5}
-  m_LocalScale: {x: 44, y: 0.1, z: 9}
+  m_LocalPosition: {x: 0, y: 0, z: 18}
+  m_LocalScale: {x: 44, y: 0.1, z: 8}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2190138439206079582}
@@ -548,7 +548,7 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &8537661834670513899
+--- !u!114 &1900788347318729728
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -576,7 +576,7 @@ MonoBehaviour:
   m_OverrideTileSize: 0
   m_TileSize: 256
   m_OverrideVoxelSize: 0
-  m_VoxelSize: 0.16666667
+  m_VoxelSize: 0.06666667
   m_MinRegionArea: 2
   m_NavMeshData: {fileID: 23800000, guid: 7aa99ddcfebb5ed4bb40956307398a3f, type: 2}
   m_BuildHeightMesh: 0

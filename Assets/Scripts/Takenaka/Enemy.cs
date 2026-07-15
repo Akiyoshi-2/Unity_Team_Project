@@ -40,20 +40,45 @@ public class Enemy : MonoBehaviour
     private float patrolTimer = 0f;
     private int currentPatrolIndex = 0;
 
-    void Start()
+    private bool isReady = false;
+
+    IEnumerator Start()
     {
         agent = GetComponent<NavMeshAgent>();
         agent.stoppingDistance = 0.1f;
 
+        // --- 修正箇所：NavMeshが準備できるまで待機 ---
+        // 1. まずは1フレーム待って、FloorスクリプトのGenerateFloorが確実に呼ばれるようにする
+        yield return null;
+
+        // 2. NavMeshAgentが有効なNavMeshの上に配置されるまで待機する
+        // (NavMeshSurface.BuildNavMeshが完了するまでループ)
+        while (!agent.isOnNavMesh)
+        {
+            // まだベイクが終わっていない場合は少し待機
+            yield return new WaitForSeconds(0.1f);
+        }
+
+        // 3. マップ生成が終わってからパトロールポイントを探す
         GameObject[] foundPoints = GameObject.FindGameObjectsWithTag("PatrolPoints");
         patrolPoints.Clear();
         foreach (GameObject point in foundPoints) patrolPoints.Add(point.transform);
 
         FindPlayer();
-    }
 
+        // 初期目的地を設定（最初のパトロールポイントへ）
+        if (patrolPoints.Count > 0)
+        {
+            agent.SetDestination(patrolPoints[currentPatrolIndex].position);
+        }
+
+        isReady = true; // 準備完了
+    }
     void Update()
     {
+        // 準備が整っていない場合は何もしない
+        if (!isReady) return;
+
         if (playerTransform == null)
         {
             FindPlayer();

@@ -1,4 +1,6 @@
+using Unity.AI.Navigation;
 using UnityEngine;
+using System.Collections;
 
 public class Floor : MonoBehaviour
 {
@@ -6,6 +8,8 @@ public class Floor : MonoBehaviour
     public GameObject[] CornerFloors;
     public GameObject[] SideFloors;
     public GameObject GoalFloor;
+
+    public NavMeshSurface navMeshSurface;
 
     public int width = 5;
     public int height = 5;
@@ -17,11 +21,27 @@ public class Floor : MonoBehaviour
         return prefabs[
             Random.Range(0, prefabs.Length)
         ];
+
     }
 
-    void Start()
+    IEnumerator Start()
     {
+        // 1. まず床をすべて生成する
         GenerateFloor();
+
+        // 2. 1フレーム待機（重要！）
+        // これを挟むことで、Unityが生成された全オブジェクトの衝突判定（Collider）を正しく認識します
+        yield return null;
+        Physics.SyncTransforms(); // Collider情報を強制同期
+
+        yield return new WaitForFixedUpdate(); // 物理系の反映を待つ
+
+        if (navMeshSurface != null)
+        {
+            // 3. 全てのフロアが完全に配置された状態で、NavMeshを再構築する
+            navMeshSurface.BuildNavMesh();
+            Debug.Log("NavMesh has been rebuilt.");
+        }
     }
 
     void GenerateFloor()

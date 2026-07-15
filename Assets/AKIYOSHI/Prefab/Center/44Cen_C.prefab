@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 5103326884871015227}
   - component: {fileID: 4515986538567342381}
   - component: {fileID: 5946912489572621790}
-  - component: {fileID: 1684715961637362165}
+  - component: {fileID: 2586867766931205443}
   m_Layer: 0
   m_Name: Floor (2)
   m_TagString: Untagged
@@ -29,8 +29,8 @@ Transform:
   m_GameObject: {fileID: 1084948525633326604}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 16.5}
-  m_LocalScale: {x: 4, y: 0.1, z: 13}
+  m_LocalPosition: {x: 0, y: 0, z: 16}
+  m_LocalScale: {x: 4, y: 0.1, z: 12}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 7953944165345721878}
@@ -113,7 +113,7 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &1684715961637362165
+--- !u!114 &2586867766931205443
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -141,7 +141,7 @@ MonoBehaviour:
   m_OverrideTileSize: 0
   m_TileSize: 256
   m_OverrideVoxelSize: 0
-  m_VoxelSize: 0.16666667
+  m_VoxelSize: 0.06666667
   m_MinRegionArea: 2
   m_NavMeshData: {fileID: 23800000, guid: d2665dac2c247494890893b0f03ffcfb, type: 2}
   m_BuildHeightMesh: 0
@@ -394,7 +394,7 @@ GameObject:
   - component: {fileID: 683691284508086242}
   - component: {fileID: 6634405529867090377}
   - component: {fileID: 2964367591730011079}
-  - component: {fileID: 3580869118577762371}
+  - component: {fileID: 4765078897454139890}
   m_Layer: 0
   m_Name: Floor (3)
   m_TagString: Untagged
@@ -411,8 +411,8 @@ Transform:
   m_GameObject: {fileID: 5290042756705255741}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -10.5}
-  m_LocalScale: {x: 4, y: 0.1, z: 25}
+  m_LocalPosition: {x: 0, y: 0, z: -10}
+  m_LocalScale: {x: 4, y: 0.1, z: 24}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 7953944165345721878}
@@ -495,7 +495,7 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &3580869118577762371
+--- !u!114 &4765078897454139890
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -523,7 +523,7 @@ MonoBehaviour:
   m_OverrideTileSize: 0
   m_TileSize: 256
   m_OverrideVoxelSize: 0
-  m_VoxelSize: 0.16666667
+  m_VoxelSize: 0.06666667
   m_MinRegionArea: 2
   m_NavMeshData: {fileID: 23800000, guid: f6d0a41f097f73247ab5ce428f4c3703, type: 2}
   m_BuildHeightMesh: 0
@@ -539,7 +539,7 @@ GameObject:
   - component: {fileID: 7250121774435287924}
   - component: {fileID: 8821225638445252989}
   - component: {fileID: 4599973928802846343}
-  - component: {fileID: 5362010956604326811}
+  - component: {fileID: 3797247581970493517}
   m_Layer: 0
   m_Name: Floor (1)
   m_TagString: Untagged
@@ -556,8 +556,8 @@ Transform:
   m_GameObject: {fileID: 6004883330271422552}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -12.5, y: 0, z: 0}
-  m_LocalScale: {x: 21, y: 0.1, z: 44}
+  m_LocalPosition: {x: -12, y: 0, z: 0}
+  m_LocalScale: {x: 20, y: 0.1, z: 44}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 7953944165345721878}
@@ -640,7 +640,7 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &5362010956604326811
+--- !u!114 &3797247581970493517
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -668,7 +668,7 @@ MonoBehaviour:
   m_OverrideTileSize: 0
   m_TileSize: 256
   m_OverrideVoxelSize: 0
-  m_VoxelSize: 0.16666667
+  m_VoxelSize: 0.06666667
   m_MinRegionArea: 2
   m_NavMeshData: {fileID: 23800000, guid: 5ae96949ed16be94e824506dbddda9c9, type: 2}
   m_BuildHeightMesh: 0
@@ -684,7 +684,7 @@ GameObject:
   - component: {fileID: 9125950253560547239}
   - component: {fileID: 7130671038315419656}
   - component: {fileID: 6456944340171307457}
-  - component: {fileID: 9138698376162597028}
+  - component: {fileID: 6961454170213207316}
   m_Layer: 0
   m_Name: Floor
   m_TagString: Untagged
@@ -701,8 +701,8 @@ Transform:
   m_GameObject: {fileID: 7765972110202169685}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 12.5, y: 0, z: 0}
-  m_LocalScale: {x: 21, y: 0.1, z: 44}
+  m_LocalPosition: {x: 12, y: 0, z: 0}
+  m_LocalScale: {x: 20, y: 0.1, z: 44}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 7953944165345721878}
@@ -785,7 +785,7 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &9138698376162597028
+--- !u!114 &6961454170213207316
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -813,7 +813,7 @@ MonoBehaviour:
   m_OverrideTileSize: 0
   m_TileSize: 256
   m_OverrideVoxelSize: 0
-  m_VoxelSize: 0.16666667
+  m_VoxelSize: 0.06666667
   m_MinRegionArea: 2
   m_NavMeshData: {fileID: 23800000, guid: 5dba6dabb153d5b4cae6eda4fc1a1402, type: 2}
   m_BuildHeightMesh: 0
