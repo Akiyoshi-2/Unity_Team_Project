@@ -1,9 +1,7 @@
 ﻿using UnityEngine;
-using UnityEngine.AI;
-using System.Collections.Generic;
 using System.Collections;
+using System.Collections.Generic;
 
-[RequireComponent(typeof(NavMeshAgent))]
 public class Enemy : MonoBehaviour
 {
     [Header("追跡設定")]
@@ -12,231 +10,494 @@ public class Enemy : MonoBehaviour
     [SerializeField] private float chaseSpeed = 5f;
     [SerializeField] private LayerMask obstacleMask;
 
-    [Header("見失った後の予測・検索挙動")]
-    [SerializeField] private float predictionDistance = 3f; // 最後に見た場所からどれくらい踏み込むか
+    [Header("探索設定")]
+    [SerializeField] private float predictionDistance = 3f;
     [SerializeField] private float searchTime = 4f;
     [SerializeField] private float lookAngle = 60f;
     [SerializeField] private float lookSpeed = 2f;
 
-    [Header("徘徊設定")]
+    [Header("巡回設定")]
     [SerializeField] private float patrolSpeed = 2.5f;
     [SerializeField] private float waitTimeAtPoint = 2f;
-    [SerializeField] private List<Transform> patrolPoints = new List<Transform>();
+    [SerializeField] private float rotateSpeed = 5f;
 
-    [Header("ノイズ演出設定")]
+    [Header("中央補正")]
+    [SerializeField] private float wallCheckDistance = 5f;
+    [SerializeField] private float centerAdjustSpeed = 2f;
+
+    [Header("ノイズ演出")]
     [SerializeField] private float glitchDuration = 0.3f;
     [SerializeField] private float shakeIntensity = 0.5f;
     [SerializeField] private float stretchIntensity = 2.0f;
 
-    private NavMeshAgent agent;
-    private Transform playerTransform;
-    private Vector3 targetSearchPosition; // 予測を含めた最終目的地
+    private enum State
+    {
+        Patrolling,
+        Chasing,
+        Searching
+    }
 
-    private enum State { Patrolling, Chasing, Searching }
     private State currentState = State.Patrolling;
 
+    private Transform playerTransform;
+
+    private List<Transform> patrolPoints = new List<Transform>();
+
+    private Transform currentPatrolPoint;
+
     private bool isPlayerVisible = false;
-    private float searchTimer = 0f;
-    private float patrolTimer = 0f;
-    private int currentPatrolIndex = 0;
 
     private bool isReady = false;
 
+    private float patrolTimer;
+
+    private float searchTimer;
+
+    private Vector3 targetSearchPosition;
+
+    [SerializeField] private float forwardCheckDistance = 3f;
+    [SerializeField] private float turnAngle = 90f;
+
+    private Vector3 moveDirection;
+
     IEnumerator Start()
     {
-        agent = GetComponent<NavMeshAgent>();
-        agent.stoppingDistance = 0.1f;
+        Debug.Log("Start開始");
 
-        // --- 修正箇所：NavMeshが準備できるまで待機 ---
-        // 1. まずは1フレーム待って、FloorスクリプトのGenerateFloorが確実に呼ばれるようにする
         yield return null;
 
-        // 2. NavMeshAgentが有効なNavMeshの上に配置されるまで待機する
-        // (NavMeshSurface.BuildNavMeshが完了するまでループ)
-        while (!agent.isOnNavMesh)
-        {
-            // まだベイクが終わっていない場合は少し待機
-            yield return new WaitForSeconds(0.1f);
-        }
+        Debug.Log("1フレーム経過");
 
-        // 3. マップ生成が終わってからパトロールポイントを探す
-        GameObject[] foundPoints = GameObject.FindGameObjectsWithTag("PatrolPoints");
+        GameObject[] points =
+            GameObject.FindGameObjectsWithTag("PatrolPoints");
+
         patrolPoints.Clear();
-        foreach (GameObject point in foundPoints) patrolPoints.Add(point.transform);
+
+        foreach (GameObject p in points)
+        {
+            patrolPoints.Add(p.transform);
+        }
 
         FindPlayer();
 
-        // 初期目的地を設定（最初のパトロールポイントへ）
-        if (patrolPoints.Count > 0)
-        {
-            agent.SetDestination(patrolPoints[currentPatrolIndex].position);
-        }
+        FindNearestPatrolPoint();
 
-        isReady = true; // 準備完了
+        moveDirection = transform.forward;
+
+        isReady = true;
     }
+
     void Update()
     {
-        // 準備が整っていない場合は何もしない
-        if (!isReady) return;
+        if (!isReady)
+            return;
 
         if (playerTransform == null)
         {
             FindPlayer();
-            if (playerTransform == null) return;
         }
 
-        CheckVisibility();
+        if (playerTransform != null)
+        {
+            CheckVisibility();
+        }
 
         switch (currentState)
         {
             case State.Patrolling:
                 PatrolLogic();
                 break;
+
             case State.Chasing:
-                ChaseLogic();
+                if (playerTransform != null)
+                    ChaseLogic();
                 break;
+
             case State.Searching:
                 SearchLogic();
                 break;
+        }
+
+        KeepCenter();
+    }
+
+    bool IsWallAhead()
+    {
+        return Physics.Raycast(
+            transform.position + Vector3.up * 0.5f,
+            moveDirection,
+            forwardCheckDistance,
+            obstacleMask);
+    }
+
+    bool CanMove(Vector3 dir)
+    {
+        return !Physics.Raycast(
+            transform.position + Vector3.up * 0.5f,
+            dir,
+            forwardCheckDistance,
+            obstacleMask);
+    }
+
+    void ChooseDirection()
+    {
+        List<Vector3> directions = new List<Vector3>();
+
+        if (CanMove(moveDirection))
+            directions.Add(moveDirection);
+
+        if (CanMove(Quaternion.Euler(0, turnAngle, 0) * moveDirection))
+            directions.Add(Quaternion.Euler(0, turnAngle, 0) * moveDirection);
+
+        if (CanMove(Quaternion.Euler(0, -turnAngle, 0) * moveDirection))
+            directions.Add(Quaternion.Euler(0, -turnAngle, 0) * moveDirection);
+        if (directions.Count == 0)
+        {
+            moveDirection = -moveDirection;
+            return;
+        }
+
+        moveDirection =
+            directions[Random.Range(0, directions.Count)];
+    }
+
+    void FindPlayer()
+    {
+        GameObject obj =
+            GameObject.FindGameObjectWithTag("Player");
+
+        if (obj != null)
+        {
+            playerTransform = obj.transform;
+        }
+    }
+
+    void FindNearestPatrolPoint()
+    {
+        float min = Mathf.Infinity;
+
+        foreach (Transform point in patrolPoints)
+        {
+            float dist =
+                Vector3.Distance(
+                    transform.position,
+                    point.position);
+
+            if (dist < min)
+            {
+                min = dist;
+                currentPatrolPoint = point;
+            }
         }
     }
 
     void CheckVisibility()
     {
-        float distanceToPlayer = Vector3.Distance(transform.position, playerTransform.position);
+        float distance =
+            Vector3.Distance(
+                transform.position,
+                playerTransform.position);
+
         bool wasVisible = isPlayerVisible;
+
         isPlayerVisible = false;
 
-        if (distanceToPlayer <= detectionRange)
+        if (distance <= detectionRange)
         {
-            Vector3 dirToPlayer = (playerTransform.position - transform.position).normalized;
-            float angleToPlayer = Vector3.Angle(transform.forward, dirToPlayer);
+            Vector3 dir =
+                (playerTransform.position -
+                transform.position).normalized;
 
-            if (angleToPlayer < viewAngle / 2f)
+            float angle =
+                Vector3.Angle(transform.forward, dir);
+
+            if (angle <= viewAngle * 0.5f)
             {
-                if (!Physics.Raycast(transform.position + Vector3.up, dirToPlayer, distanceToPlayer, obstacleMask))
+                if (!Physics.Raycast(
+                    transform.position + Vector3.up,
+                    dir,
+                    distance,
+                    obstacleMask))
                 {
                     isPlayerVisible = true;
 
                     if (!wasVisible)
                     {
                         currentState = State.Chasing;
-                        agent.isStopped = false;
-                        StartCoroutine(PlayHardGlitch());
+                        StartCoroutine(
+                            PlayHardGlitch());
                     }
                 }
             }
         }
 
-        // 追跡中に見失った瞬間の処理
-        if (!isPlayerVisible && currentState == State.Chasing)
+        if (!isPlayerVisible &&
+           currentState == State.Chasing)
         {
             currentState = State.Searching;
+
             searchTimer = 0f;
-            agent.isStopped = false;
 
-            // --- 予測地点の計算 ---
-            // 敵からプレイヤーへの方向を計算
-            Vector3 jumpDir = (playerTransform.position - transform.position).normalized;
-            // プレイヤーの位置からさらに predictionDistance 分だけ先に目的地を置く
-            Vector3 rawPredictedPos = playerTransform.position + jumpDir * predictionDistance;
+            Vector3 dir =
+                (playerTransform.position -
+                transform.position).normalized;
 
-            // 予測地点が壁の中だった場合、最も近い「歩ける場所」に補正する
-            NavMeshHit hit;
-            if (NavMesh.SamplePosition(rawPredictedPos, out hit, predictionDistance + 1f, NavMesh.AllAreas))
-            {
-                targetSearchPosition = hit.position;
-            }
-            else
-            {
-                targetSearchPosition = playerTransform.position;
-            }
-
-            agent.SetDestination(targetSearchPosition);
+            targetSearchPosition =
+                playerTransform.position +
+                dir * predictionDistance;
         }
     }
 
     void ChaseLogic()
     {
-        agent.speed = chaseSpeed;
-        agent.SetDestination(playerTransform.position);
-    }
+        Vector3 dir =
+            playerTransform.position -
+            transform.position;
 
-    void SearchLogic()
-    {
-        agent.speed = chaseSpeed;
+        dir.y = 0;
 
-        if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
+        // プレイヤーが真上・真下にいる場合は何もしない
+        if (dir.sqrMagnitude < 0.01f)
+            return;
+
+        // 進行方向を更新
+        moveDirection = dir.normalized;
+
+        // 前方が壁なら進める方向を探す
+        if (IsWallAhead())
         {
-            agent.isStopped = true;
-            searchTimer += Time.deltaTime;
-
-            float angle = Mathf.Sin(Time.time * lookSpeed) * lookAngle;
-            transform.rotation = Quaternion.Euler(0, transform.eulerAngles.y + angle * Time.deltaTime, 0);
-
-            if (searchTimer >= searchTime)
-            {
-                agent.isStopped = false;
-                currentState = State.Patrolling;
-            }
+            ChooseDirection();
         }
+
+        // 向きを滑らかに変更
+        Quaternion targetRot =
+            Quaternion.LookRotation(moveDirection);
+
+        transform.rotation =
+            Quaternion.Slerp(
+                transform.rotation,
+                targetRot,
+                rotateSpeed * Time.deltaTime);
+
+        // 前進
+        transform.position +=
+            moveDirection *
+            chaseSpeed *
+            Time.deltaTime;
     }
 
     void PatrolLogic()
     {
-        agent.speed = patrolSpeed;
-        if (patrolPoints.Count == 0) return;
+        if (currentPatrolPoint == null)
+            return;
 
-        if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
+        Vector3 dir =
+            currentPatrolPoint.position -
+            transform.position;
+
+        dir.y = 0;
+
+        // 到着判定
+        if (dir.magnitude < 0.5f)
         {
-            agent.isStopped = true;
-            patrolTimer += Time.deltaTime;
+            currentPatrolPoint =
+                GetRandomPatrolPoint(currentPatrolPoint);
 
-            if (patrolTimer >= waitTimeAtPoint)
+            return;
+        }
+
+        moveDirection = dir.normalized;
+
+        // 前方が壁なら方向変更
+        if (IsWallAhead())
+        {
+            ChooseDirection();
+        }
+
+        Quaternion targetRot =
+            Quaternion.LookRotation(moveDirection);
+
+        transform.rotation =
+            Quaternion.Slerp(
+                transform.rotation,
+                targetRot,
+                rotateSpeed * Time.deltaTime);
+
+        transform.position +=
+            moveDirection *
+            patrolSpeed *
+            Time.deltaTime;
+    }
+
+    Transform GetRandomPatrolPoint(Transform current)
+    {
+        if (patrolPoints.Count == 0)
+            return null;
+
+        if (patrolPoints.Count == 1)
+            return patrolPoints[0];
+
+        Transform next;
+
+        do
+        {
+            next =
+                patrolPoints[
+                    Random.Range(
+                        0,
+                        patrolPoints.Count)];
+        }
+        while (next == current);
+
+        return next;
+    }
+
+    void SearchLogic()
+    {
+        Vector3 dir =
+            targetSearchPosition -
+            transform.position;
+
+        dir.y = 0;
+
+        float dist = dir.magnitude;
+
+        // まだ探索地点に着いていない
+        if (dist > 0.2f)
+        {
+            moveDirection = dir.normalized;
+
+            // 前方に壁があれば別の方向を探す
+            if (IsWallAhead())
             {
-                currentPatrolIndex = (currentPatrolIndex + 1) % patrolPoints.Count;
-                agent.isStopped = false;
-                agent.SetDestination(patrolPoints[currentPatrolIndex].position);
-                patrolTimer = 0f;
+                ChooseDirection();
             }
+
+            // 向きを滑らかに変更
+            Quaternion targetRot =
+                Quaternion.LookRotation(moveDirection);
+
+            transform.rotation =
+                Quaternion.Slerp(
+                    transform.rotation,
+                    targetRot,
+                    rotateSpeed * Time.deltaTime);
+
+            // 前進
+            transform.position +=
+                moveDirection *
+                chaseSpeed *
+                Time.deltaTime;
         }
         else
         {
-            agent.isStopped = false;
+            // 探索地点に着いたら周囲を見渡す
+            searchTimer += Time.deltaTime;
+
+            float angle =
+                Mathf.Sin(
+                    Time.time *
+                    lookSpeed)
+                * lookAngle;
+
+            transform.Rotate(
+                0,
+                angle * Time.deltaTime,
+                0);
+
+            if (searchTimer >= searchTime)
+            {
+                searchTimer = 0f;
+
+                currentState = State.Patrolling;
+
+                FindNearestPatrolPoint();
+            }
         }
     }
 
-    // --- Glitch演出コルーチン（以前のまま） ---
+    void KeepCenter()
+    {
+        RaycastHit leftHit;
+        RaycastHit rightHit;
+
+        bool left =
+            Physics.Raycast(
+                transform.position,
+                -transform.right,
+                out leftHit,
+                wallCheckDistance,
+                obstacleMask);
+
+        bool right =
+            Physics.Raycast(
+                transform.position,
+                transform.right,
+                out rightHit,
+                wallCheckDistance,
+                obstacleMask);
+
+        if (left && right)
+        {
+            float diff =
+                leftHit.distance -
+                rightHit.distance;
+
+            transform.position +=
+                transform.right *
+                diff *
+                centerAdjustSpeed *
+                Time.deltaTime;
+        }
+    }
+
     IEnumerator PlayHardGlitch()
     {
         Camera cam = Camera.main;
-        if (cam == null) yield break;
 
-        float originalAspect = cam.aspect;
-        float originalFOV = cam.fieldOfView;
-        Vector3 originalLocalPos = cam.transform.localPosition;
-        Quaternion originalLocalRot = cam.transform.localRotation;
+        if (cam == null)
+            yield break;
+
+        float originalAspect =
+            cam.aspect;
+
+        float originalFOV =
+            cam.fieldOfView;
+
+        Vector3 originalPos =
+            cam.transform.localPosition;
+
+        Quaternion originalRot =
+            cam.transform.localRotation;
 
         float elapsed = 0f;
+
         while (elapsed < glitchDuration)
         {
-            cam.transform.localPosition = originalLocalPos + Random.insideUnitSphere * shakeIntensity;
-            cam.aspect = originalAspect * Random.Range(1f / stretchIntensity, stretchIntensity);
-            cam.fieldOfView = originalFOV + Random.Range(-15f, 15f);
+            cam.transform.localPosition =
+                originalPos +
+                Random.insideUnitSphere *
+                shakeIntensity;
+
+            cam.aspect =
+                originalAspect *
+                Random.Range(
+                   1f / stretchIntensity,
+                stretchIntensity);
+
+            cam.fieldOfView =
+                originalFOV +
+                Random.Range(-15f, 15f);
+
             elapsed += Time.unscaledDeltaTime;
+
             yield return null;
         }
 
         cam.ResetAspect();
         cam.fieldOfView = originalFOV;
-        cam.transform.localPosition = originalLocalPos;
-        cam.transform.localRotation = originalLocalRot;
-    }
-
-    void FindPlayer()
-    {
-        GameObject p = GameObject.FindGameObjectWithTag("Player");
-        if (p != null) playerTransform = p.transform;
+        cam.transform.localPosition = originalPos;
+        cam.transform.localRotation = originalRot;
     }
 
     private void OnTriggerEnter(Collider other)
@@ -244,26 +505,87 @@ public class Enemy : MonoBehaviour
         if (other.CompareTag("Player"))
         {
             Destroy(other.gameObject);
+
             playerTransform = null;
+
             currentState = State.Patrolling;
+
+            FindNearestPatrolPoint();
         }
     }
 
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(transform.position, detectionRange);
 
-        Vector3 leftDir = Quaternion.Euler(0, -viewAngle / 2f, 0) * transform.forward;
-        Vector3 rightDir = Quaternion.Euler(0, viewAngle / 2f, 0) * transform.forward;
-        Gizmos.DrawLine(transform.position, transform.position + leftDir * detectionRange);
-        Gizmos.DrawLine(transform.position, transform.position + rightDir * detectionRange);
+        Gizmos.DrawWireSphere(
+            transform.position,
+            detectionRange);
 
-        // 予測目的地を青い球で表示（デバッグ用）
-        if (currentState == State.Searching)
+        Vector3 leftDir =
+            Quaternion.Euler(
+                0,
+                -viewAngle * 0.5f,
+                0) *
+            transform.forward;
+
+        Vector3 rightDir =
+            Quaternion.Euler(
+                0,
+                viewAngle * 0.5f,
+                0) *
+            transform.forward;
+
+        Gizmos.DrawLine(
+            transform.position,
+            transform.position +
+            leftDir *
+            detectionRange);
+
+        Gizmos.DrawLine(
+            transform.position,
+            transform.position +
+            rightDir *
+            detectionRange);
+
+        Gizmos.color = Color.blue;
+
+        Gizmos.DrawSphere(
+            targetSearchPosition,
+            0.3f);
+
+        if (currentPatrolPoint != null)
         {
-            Gizmos.color = Color.blue;
-            Gizmos.DrawSphere(targetSearchPosition, 0.5f);
+            Gizmos.color = Color.green;
+
+            Gizmos.DrawLine(
+                transform.position,
+                currentPatrolPoint.position);
+
+            Gizmos.DrawSphere(
+                currentPatrolPoint.position,
+                0.4f);
         }
+
+        // 左右の壁チェック用Ray
+        Gizmos.color = Color.yellow;
+
+        Gizmos.DrawRay(
+            transform.position,
+            transform.right *
+            wallCheckDistance);
+
+        Gizmos.DrawRay(
+            transform.position,
+            -transform.right *
+            wallCheckDistance);
+
+        // 前方確認Ray
+        Gizmos.color = Color.cyan;
+
+        Gizmos.DrawRay(
+            transform.position,
+            transform.forward *
+            wallCheckDistance);
     }
 }

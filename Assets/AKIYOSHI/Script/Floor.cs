@@ -14,7 +14,7 @@ public class Floor : MonoBehaviour
     public int width = 5;
     public int height = 5;
 
-    public float size = 20f;
+    public float size = 44f;
 
     GameObject GetRandom(GameObject[] prefabs)
     {
@@ -145,6 +145,11 @@ public class Floor : MonoBehaviour
                 }
 
                 Instantiate(prefabToSpawn, pos, rot);
+
+                GameObject obj = Instantiate(prefabToSpawn, pos, rot);
+
+                Debug.Log(obj.transform.Find("Floor").localPosition);
+
             }
         }
     }
