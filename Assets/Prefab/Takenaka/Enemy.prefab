@@ -12,7 +12,6 @@ GameObject:
   - component: {fileID: 8670981299880497293}
   - component: {fileID: 6365355442076806374}
   - component: {fileID: 9082594702539937398}
-  - component: {fileID: 5280740099403862455}
   - component: {fileID: 8094593310961676960}
   - component: {fileID: 4319111415681729362}
   - component: {fileID: 6251322287203368414}
@@ -110,39 +109,12 @@ SphereCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 1
+  m_IsTrigger: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
   m_Radius: 0.5
   m_Center: {x: 0, y: 0, z: 0}
---- !u!54 &5280740099403862455
-Rigidbody:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4731037654473082604}
-  serializedVersion: 5
-  m_Mass: 1
-  m_LinearDamping: 0
-  m_AngularDamping: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
-  m_InertiaTensor: {x: 1, y: 1, z: 1}
-  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ImplicitCom: 1
-  m_ImplicitTensor: 1
-  m_UseGravity: 1
-  m_IsKinematic: 1
-  m_Interpolate: 0
-  m_Constraints: 0
-  m_CollisionDetection: 0
 --- !u!195 &8094593310961676960
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -178,19 +150,25 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Enemy
   detectionRange: 50
-  fieldOfViewAngle: 110
-  stopDistance: 0.1
+  viewAngle: 90
   chaseSpeed: 9
   obstacleMask:
     serializedVersion: 2
     m_Bits: 8
-  searchWaitTime: 2.5
-  overshootDistance: 5
+  predictionDistance: 3
+  searchTime: 4
   lookAngle: 60
   lookSpeed: 60
   patrolSpeed: 5
   waitTimeAtPoint: 0
-  patrolPoints: []
+  rotateSpeed: 5
+  wallCheckDistance: 5
+  centerAdjustSpeed: 2
+  glitchDuration: 0.3
+  shakeIntensity: 0.5
+  stretchIntensity: 2
+  forwardCheckDistance: 3
+  turnAngle: 90
 --- !u!114 &6251322287203368414
 MonoBehaviour:
   m_ObjectHideFlags: 0

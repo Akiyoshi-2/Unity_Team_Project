@@ -60,8 +60,17 @@ public class Enemy : MonoBehaviour
 
     private Vector3 moveDirection;
 
+    private CharacterController controller;
+
+    private bool isAvoidingWall = false;
+    private Vector3 avoidDirection;
+
     IEnumerator Start()
     {
+
+        controller =
+        GetComponent<CharacterController>();
+
         Debug.Log("Start開始");
 
         yield return null;
@@ -120,21 +129,28 @@ public class Enemy : MonoBehaviour
 
         KeepCenter();
     }
-
     bool IsWallAhead()
     {
+        Vector3 origin =
+            transform.position +
+            Vector3.up * 0.5f;
+
         return Physics.Raycast(
-            transform.position + Vector3.up * 0.5f,
-            moveDirection,
+            origin,
+            moveDirection.normalized,
             forwardCheckDistance,
             obstacleMask);
     }
 
     bool CanMove(Vector3 dir)
     {
+        Vector3 origin =
+            transform.position +
+            Vector3.up * 0.5f;
+
         return !Physics.Raycast(
-            transform.position + Vector3.up * 0.5f,
-            dir,
+            origin,
+            dir.normalized,
             forwardCheckDistance,
             obstacleMask);
     }
@@ -247,86 +263,103 @@ public class Enemy : MonoBehaviour
                 dir * predictionDistance;
         }
     }
-
     void ChaseLogic()
     {
-        Vector3 dir =
-            playerTransform.position -
-            transform.position;
+        Vector3 toPlayer =
+            playerTransform.position - transform.position;
 
-        dir.y = 0;
+        toPlayer.y = 0;
 
-        // プレイヤーが真上・真下にいる場合は何もしない
-        if (dir.sqrMagnitude < 0.01f)
+        if (toPlayer.sqrMagnitude < 0.01f)
             return;
 
-        // 進行方向を更新
-        moveDirection = dir.normalized;
-
-        // 前方が壁なら進める方向を探す
-        if (IsWallAhead())
+        if (!isAvoidingWall)
         {
-            ChooseDirection();
-        }
+            moveDirection = toPlayer.normalized;
 
-        // 向きを滑らかに変更
-        Quaternion targetRot =
-            Quaternion.LookRotation(moveDirection);
+            if (IsWallAhead())
+            {
+                ChooseDirectionTowards(playerTransform.position);
+
+                avoidDirection = moveDirection;
+
+                isAvoidingWall = true;
+            }
+        }
+        else
+        {
+            moveDirection = avoidDirection;
+
+            if (!IsWallAhead())
+            {
+                isAvoidingWall = false;
+            }
+        }
 
         transform.rotation =
             Quaternion.Slerp(
                 transform.rotation,
-                targetRot,
+                Quaternion.LookRotation(moveDirection),
                 rotateSpeed * Time.deltaTime);
 
-        // 前進
-        transform.position +=
+        controller.Move(
             moveDirection *
             chaseSpeed *
-            Time.deltaTime;
+            Time.deltaTime);
     }
-
     void PatrolLogic()
     {
         if (currentPatrolPoint == null)
             return;
 
-        Vector3 dir =
-            currentPatrolPoint.position -
-            transform.position;
+        Vector3 toTarget =
+            currentPatrolPoint.position - transform.position;
 
-        dir.y = 0;
+        toTarget.y = 0;
 
-        // 到着判定
-        if (dir.magnitude < 0.5f)
+        if (toTarget.magnitude < 0.5f)
         {
             currentPatrolPoint =
                 GetRandomPatrolPoint(currentPatrolPoint);
 
+            isAvoidingWall = false;
+
             return;
         }
 
-        moveDirection = dir.normalized;
-
-        // 前方が壁なら方向変更
-        if (IsWallAhead())
+        if (!isAvoidingWall)
         {
-            ChooseDirection();
-        }
+            moveDirection = toTarget.normalized;
 
-        Quaternion targetRot =
-            Quaternion.LookRotation(moveDirection);
+            if (IsWallAhead())
+            {
+                ChooseDirectionTowards(currentPatrolPoint.position);
+
+                avoidDirection = moveDirection;
+
+                isAvoidingWall = true;
+            }
+        }
+        else
+        {
+            moveDirection = avoidDirection;
+
+            if (!IsWallAhead())
+            {
+                isAvoidingWall = false;
+            }
+        }
 
         transform.rotation =
             Quaternion.Slerp(
                 transform.rotation,
-                targetRot,
+                Quaternion.LookRotation(moveDirection),
                 rotateSpeed * Time.deltaTime);
 
-        transform.position +=
+        controller.Move(
             moveDirection *
             patrolSpeed *
-            Time.deltaTime;
+            Time.deltaTime);
     }
 
     Transform GetRandomPatrolPoint(Transform current)
@@ -354,64 +387,32 @@ public class Enemy : MonoBehaviour
 
     void SearchLogic()
     {
-        Vector3 dir =
+        Vector3 toTarget =
             targetSearchPosition -
             transform.position;
 
-        dir.y = 0;
+        toTarget.y = 0;
 
-        float dist = dir.magnitude;
-
-        // まだ探索地点に着いていない
-        if (dist > 0.2f)
+        if (!isAvoidingWall)
         {
-            moveDirection = dir.normalized;
+            moveDirection = toTarget.normalized;
 
-            // 前方に壁があれば別の方向を探す
             if (IsWallAhead())
             {
-                ChooseDirection();
+                ChooseDirectionTowards(targetSearchPosition);
+
+                avoidDirection = moveDirection;
+
+                isAvoidingWall = true;
             }
-
-            // 向きを滑らかに変更
-            Quaternion targetRot =
-                Quaternion.LookRotation(moveDirection);
-
-            transform.rotation =
-                Quaternion.Slerp(
-                    transform.rotation,
-                    targetRot,
-                    rotateSpeed * Time.deltaTime);
-
-            // 前進
-            transform.position +=
-                moveDirection *
-                chaseSpeed *
-                Time.deltaTime;
         }
         else
         {
-            // 探索地点に着いたら周囲を見渡す
-            searchTimer += Time.deltaTime;
+            moveDirection = avoidDirection;
 
-            float angle =
-                Mathf.Sin(
-                    Time.time *
-                    lookSpeed)
-                * lookAngle;
-
-            transform.Rotate(
-                0,
-                angle * Time.deltaTime,
-                0);
-
-            if (searchTimer >= searchTime)
+            if (!IsWallAhead())
             {
-                searchTimer = 0f;
-
-                currentState = State.Patrolling;
-
-                FindNearestPatrolPoint();
+                isAvoidingWall = false;
             }
         }
     }
@@ -588,4 +589,53 @@ public class Enemy : MonoBehaviour
             transform.forward *
             wallCheckDistance);
     }
+
+    void ChooseDirectionTowards(Vector3 targetPosition)
+    {
+        List<Vector3> candidates = new List<Vector3>();
+
+        Vector3 forward = moveDirection.normalized;
+        Vector3 right = transform.right;
+        Vector3 left = -transform.right;
+        Vector3 back = -forward;
+
+        if (CanMove(forward))
+            candidates.Add(forward);
+
+        if (CanMove(right))
+            candidates.Add(right);
+
+        if (CanMove(left))
+            candidates.Add(left);
+
+        if (CanMove(back))
+            candidates.Add(back);
+
+        if (candidates.Count == 0)
+            return;
+
+        Vector3 bestDir = candidates[0];
+        float bestDistance = Mathf.Infinity;
+
+        foreach (Vector3 dir in candidates)
+        {
+            Vector3 nextPos =
+                transform.position +
+                dir * 2f;
+
+            float distance =
+                Vector3.Distance(
+                    nextPos,
+                    targetPosition);
+
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                bestDir = dir;
+            }
+        }
+
+        moveDirection = bestDir;
+    }
+
 }
