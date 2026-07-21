@@ -2,8 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using TMPro;
+using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.Rendering.PostProcessing;
 using UnityEngine.SceneManagement;
+using UnityStandardAssets.Utility;
 
 public class Player : MonoBehaviour
 {
@@ -23,10 +26,13 @@ public class Player : MonoBehaviour
     }
 
     [SerializeField]
+    private CurveControlledBob headBob_ = new CurveControlledBob();
+
+    [SerializeField]
     private Camera m_Camera;
 
     [SerializeField]
-    private Outline m_Enemy;
+    private GameObject m_Enemy;
 
     Vector3 camera_m;
     Vector3 player_m;
@@ -61,11 +67,36 @@ public class Player : MonoBehaviour
     private int item1Stock = 0;
     private int item2Stock = 0;
 
+    private float useItemTimer;
+
     private bool enemyOutline = false;
     private float outlineTimer = 0;
 
     private bool staminam = false;
+    [SerializeField]
     private float staminamTimer = 0;
+
+    private bool flashLight = false;
+    private float flashLightTimer = 0;
+
+    [SerializeField]
+    private PostProcessVolume volume = null;
+    private Bloom bloom = null;
+    private int flashFlg = 0;
+
+    [Header("アイテム設定")]
+    [SerializeField]
+    private float staminamTime = 10;
+    [SerializeField]
+    private float ohudaTime = 10;
+    [SerializeField]
+    private float flashLightTime = 10;
+
+    private void Start()
+    {
+        volume.profile.TryGetSettings(out bloom);
+        headBob_.Setup(m_Camera, 1.0f);
+    }
 
     private void Update()
     {
@@ -80,19 +111,35 @@ public class Player : MonoBehaviour
 
             if (Input.GetKey(KeyCode.S))
             {
+
+                Vector3 headBob = headBob_.DoHeadBob(0.8f);
+                m_Camera.transform.localPosition = headBob;
+
                 moveXZ += -this.transform.forward * m_BackSpeed;
             }
             if (Input.GetKey(KeyCode.D))
             {
+
+                Vector3 headBob = headBob_.DoHeadBob(0.8f);
+                m_Camera.transform.localPosition = headBob;
+
                 moveXZ += this.transform.right * m_SideSpeed;
             }
             if (Input.GetKey(KeyCode.A))
             {
+
+                Vector3 headBob = headBob_.DoHeadBob(0.8f);
+                m_Camera.transform.localPosition = headBob;
+
                 moveXZ += -this.transform.right * m_SideSpeed;
             }
 
             if (Input.GetKey(KeyCode.W))
             {
+
+                Vector3 headBob = headBob_.DoHeadBob(0.8f);
+                m_Camera.transform.localPosition = headBob;
+
                 moveXZ += this.transform.forward * m_ForwardSpeed;
                 if (run && !staminaOut && !staminam)
                 {
@@ -119,7 +166,6 @@ public class Player : MonoBehaviour
                 if (hit && raycastHit.collider.tag == "item" && (item1Stock == 0 || item2Stock == 0))
                 {
                     raycastHit.collider.gameObject.SetActive(false);
-                    Debug.Log(raycastHit.collider.gameObject.name + "を拾った"); //後で消す
 
                     if (raycastHit.collider.name == "お札")
                     {
@@ -129,19 +175,25 @@ public class Player : MonoBehaviour
                     {
                         getItemID = 2;
                     }
+                    if (raycastHit.collider.name == "フラッシュライト")
+                    {
+                        getItemID = 3;
+                    }
 
                     if (item1Stock == 0)
                     {
                         item1Stock = getItemID;
+                        Debug.Log(GetItemName(item1Stock) + "を拾った"); //消す
                     }
                     else if (item2Stock == 0)
                     {
                         item2Stock = getItemID;
+                        Debug.Log(GetItemName(item2Stock) + "を拾った"); //消す
                     }
                 }
                 else if (hit && raycastHit.collider.tag == "item" && item1Stock != 0 && item2Stock != 0)
                 {
-                    Debug.Log("これ以上アイテムを拾えません"); //後で消す
+                    Debug.Log("これ以上アイテムを拾えません"); //消す
                 }
 
                 if (hit && raycastHit.collider.tag == "HideBox")
@@ -149,35 +201,63 @@ public class Player : MonoBehaviour
                     posSave = this.transform.position;
                     this.transform.localScale = Vector3.zero;
                     this.transform.position = raycastHit.transform.position;
-                    this.transform.localEulerAngles = raycastHit.transform.localEulerAngles;
-                    dirStop = raycastHit.transform.localEulerAngles.y;
+                    this.transform.localEulerAngles =
+                        new Vector3
+                        (raycastHit.transform.localEulerAngles.x,
+                        raycastHit.transform.localEulerAngles.y + 90,
+                        raycastHit.transform.localEulerAngles.z)
+                        ;
+
+                    dirStop = raycastHit.transform.localEulerAngles.y + 90;
                     rb.useGravity = false;
                     tagChange = true;
+                }
+
+                if (hit && raycastHit.collider.tag == "Door")
+                {
+                    //raycastHit.transform.localEulerAngles.y = 0;
                 }
             }
 
             if (Input.GetKeyDown(KeyCode.Alpha1))
             {
-                if (item1Stock != 0)
+                if (item1Stock != 0 && useItemTimer <= 0)
                 {
+                    Debug.Log(GetItemName(item1Stock) + "を使った"); //消す
                     Item(item1Stock);
+                    useItemTimer = 1.5f;
                     item1Stock = 0;
+                }
+                else if (item1Stock != 0 && useItemTimer >= 0)
+                {
+                    Debug.Log("アイテムクールタイム中,　残り時間(" + useItemTimer + "秒)"); //消す
                 }
 
             }
             if (Input.GetKeyDown(KeyCode.Alpha2))
             {
-                if (item2Stock != 0)
+                if (item2Stock != 0 && useItemTimer <= 0)
                 {
+                    Debug.Log(GetItemName(item2Stock) + "を使った"); //消す
                     Item(item2Stock);
+                    useItemTimer = 1.5f;
                     item2Stock = 0;
                 }
+                else if (item2Stock != 0 && useItemTimer >= 0)
+                {
+                    Debug.Log("アイテムクールタイム中・残り時間(" + useItemTimer + "秒)"); //消す
+                }
+            }
+            useItemTimer -= Time.deltaTime;
+            if (useItemTimer < 0)
+            {
+                useItemTimer = 0;
             }
 
             // 後で消す
             if (Input.GetKeyDown(KeyCode.I))
             {
-                Debug.Log("Item1 : " + item1Stock + "  Item2 : " + item2Stock);
+                Debug.Log("Item1 : " + GetItemName(item1Stock) + "  Item2 : " + GetItemName(item2Stock));
             }
 
             if (walk && Input.GetKey(KeyCode.LeftShift) && !Squat && !staminaOut)
@@ -233,17 +313,17 @@ public class Player : MonoBehaviour
 
         if (enemyOutline)
         {
-            m_Enemy.enabled = true;
+            m_Enemy.GetComponent<Outline>().enabled = true;
             outlineTimer += Time.deltaTime;
 
-            if (outlineTimer > 10)
+            if (outlineTimer > ohudaTime)
             {
                 enemyOutline = false;
             }
         }
         else
         {
-            m_Enemy.enabled = false;
+            m_Enemy.GetComponent<Outline>().enabled = false;
             outlineTimer = 0;
         }
 
@@ -259,7 +339,7 @@ public class Player : MonoBehaviour
                 stamina = 10.0f;
             }
 
-            if (staminamTimer > 10)
+            if (staminamTimer > staminamTime)
             {
                 staminam = false;
             }
@@ -267,6 +347,52 @@ public class Player : MonoBehaviour
         else
         {
             staminamTimer = 0;
+        }
+
+        if (flashLight)
+        {
+            flashLightTimer += Time.deltaTime;
+            float distance = Vector3.Distance(this.transform.position, m_Enemy.transform.position);
+            if (distance <= 20.0f)
+            {
+                //m_Enemy.GetComponent<Enemy>().flashLightHit = true;
+            }
+
+            if (flashFlg == 0)
+            {
+                bloom.enabled.value = true;
+                bloom.intensity.value += Time.deltaTime * 100;
+                if (bloom.intensity.value > 50)
+                {
+                    bloom.intensity.value = 50;
+                    flashFlg = 1;
+                }
+            }
+            if (flashFlg == 1)
+            {
+                bloom.intensity.value -= Time.deltaTime * 100;
+                if (bloom.intensity.value < 0)
+                {
+                    bloom.intensity.value = 0;
+                    bloom.enabled.value = false;
+                    flashFlg = 2;
+                }
+            }
+            if (flashFlg == 2 /*&& !m_Enemy.GetComponent<Enemy>().flashLightHit*/)
+            {
+                flashLight = false;
+            }
+
+            if (flashLightTimer > flashLightTime)
+            {
+                //m_Enemy.GetComponent<Enemy>().flashLightHit = false;
+                flashLight = false;
+            }
+        }
+        else
+        {
+            flashFlg = 0;
+            flashLightTimer = 0;
         }
 
         if ((staminaOut || tagChange) && !staminam)
@@ -397,14 +523,52 @@ public class Player : MonoBehaviour
 
     private void Item(int i)
     {
-        if (i == 1)
+        if (i == 1 && !enemyOutline)
         {
             enemyOutline = true;
         }
-        
-        if (i == 2)
+        else if (i == 1 && enemyOutline)
+        {
+            outlineTimer = 0;
+        }
+
+        if (i == 2 && !staminam)
         {
             staminam = true;
+        }
+        else if (i == 2 && staminam)
+        {
+            staminamTimer = 0;
+        }
+
+        if (i == 3 && !flashLight)
+        {
+            flashLight = true;
+        }
+        else if (i == 3 && flashLight)
+        {
+            flashFlg = 0;
+            flashLightTimer = 0;
+        }
+    }
+
+    private System.String GetItemName(int ID)
+    {
+        if (ID == 1)
+        {
+            return "お札";
+        }
+        if (ID == 2)
+        {
+            return "スタミナム";
+        }
+        if (ID == 3)
+        {
+            return "フラッシュライト";
+        }
+        else
+        {
+            return null;
         }
     }
 }
