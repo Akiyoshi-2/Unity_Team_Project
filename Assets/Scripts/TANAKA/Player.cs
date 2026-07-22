@@ -355,7 +355,7 @@ public class Player : MonoBehaviour
             float distance = Vector3.Distance(this.transform.position, m_Enemy.transform.position);
             if (distance <= 20.0f)
             {
-                //m_Enemy.GetComponent<Enemy>().flashLightHit = true;
+                m_Enemy.GetComponent<Enemy>().flashLightHit = true;
             }
 
             if (flashFlg == 0)
@@ -378,14 +378,14 @@ public class Player : MonoBehaviour
                     flashFlg = 2;
                 }
             }
-            if (flashFlg == 2 /*&& !m_Enemy.GetComponent<Enemy>().flashLightHit*/)
+            if (flashFlg == 2 && !m_Enemy.GetComponent<Enemy>().flashLightHit)
             {
                 flashLight = false;
             }
 
             if (flashLightTimer > flashLightTime)
             {
-                //m_Enemy.GetComponent<Enemy>().flashLightHit = false;
+                m_Enemy.GetComponent<Enemy>().flashLightHit = false;
                 flashLight = false;
             }
         }

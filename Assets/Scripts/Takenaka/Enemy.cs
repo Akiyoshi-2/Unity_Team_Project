@@ -1,5 +1,8 @@
-﻿using UnityEngine;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.Rendering.PostProcessing;
 
 public class Enemy : MonoBehaviour
 {
@@ -42,8 +45,31 @@ public class Enemy : MonoBehaviour
 
     private LayerMask combinedMoveMask;
 
+    [SerializeField]
+    private PostProcessVolume volume = null;
+
+    private Grain grain;
+    private Vignette vignette;
+    private ChromaticAberration chromaticAberration;
+
+    [NonSerialized]
+    public bool flashLightHit = false;
+    private bool stunFlg = false;
+    private float saveChaseSpeed = 0f;
+    private float saveMoveSpeed = 0f;
+    private float saveDetectionRange = 0f;
+
+    [Header("ノイズ演出設定")]
+    [SerializeField] private float glitchDuration = 0.3f;
+    [SerializeField] private float shakeIntensity = 0.5f;
+    [SerializeField] private float stretchIntensity = 2.0f;
+
     void Start()
     {
+        volume.profile.TryGetSettings(out grain);
+        volume.profile.TryGetSettings(out vignette);
+        volume.profile.TryGetSettings(out chromaticAberration);
+
         combinedMoveMask = wallLayer | wallByEnemyLayer;
         if (wallLayer == 0) wallLayer = LayerMask.GetMask("Wall");
 
@@ -53,6 +79,10 @@ public class Enemy : MonoBehaviour
 
         GameObject playerObj = GameObject.FindGameObjectWithTag(playerTag);
         if (playerObj != null) player = playerObj.transform;
+
+        saveChaseSpeed = chaseSpeed;
+        saveMoveSpeed = moveSpeed;
+        saveDetectionRange = detectionRange;
     }
 
     void Update()
@@ -67,6 +97,27 @@ public class Enemy : MonoBehaviour
         }
 
         bool canSee = CanSeePlayer();
+
+        if (flashLightHit)
+        {
+            if (!stunFlg)
+            {
+                saveChaseSpeed = chaseSpeed;
+                saveMoveSpeed = moveSpeed;
+                saveDetectionRange = detectionRange;
+                stunFlg = true;
+            }
+            chaseSpeed = 0;
+            moveSpeed = 0;
+            detectionRange = 0;
+        }
+        else if (!flashLightHit && stunFlg)
+        {
+            chaseSpeed = saveChaseSpeed;
+            moveSpeed = saveMoveSpeed;
+            detectionRange = saveDetectionRange;
+            stunFlg = false;
+        }
 
         switch (currentState)
         {
@@ -115,6 +166,7 @@ public class Enemy : MonoBehaviour
             currentState = State.Chase;
             visitLevelMap.Clear(); // 発見した瞬間に今までの記憶をリセット
             Debug.Log("プレイヤー発見！レベルをリセットしました");
+            StartCoroutine(PlayHardGlitch());
         }
     }
 
@@ -134,6 +186,17 @@ public class Enemy : MonoBehaviour
     // 追跡ロジック
     void ChaseLogic()
     {
+        vignette.enabled.value = true;
+        chromaticAberration.enabled.value = true;
+
+        float distance = Vector3.Distance(player.position, this.transform.position);
+
+        float t = 1f - Mathf.InverseLerp(0f, detectionRange, distance);
+
+        float value = t * 0.4f;
+
+        vignette.intensity.value = value;
+
         float distToTarget = Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), currentTargetCell);
         if (distToTarget < 0.05f)
         {
@@ -150,6 +213,9 @@ public class Enemy : MonoBehaviour
     // 捜索ロジック
     void SearchLogic()
     {
+         vignette.enabled.value = false;
+        chromaticAberration.enabled.value = false;
+
         float distToTarget = Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), currentTargetCell);
         float distToLastSeen = Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), lastSeenCell);
 
@@ -200,7 +266,7 @@ public class Enemy : MonoBehaviour
         else if (sides.Count > 0 && straightStepCount >= minStraightSteps)
         {
             Vector3 bestSide = SortByLevelPriority(sides);
-            if (GetVisitLevel(currentPos + bestSide * gridSize) < GetVisitLevel(currentPos + fwd * gridSize) || Random.value < turnProbability)
+            if (GetVisitLevel(currentPos + bestSide * gridSize) < GetVisitLevel(currentPos + fwd * gridSize) || UnityEngine.Random.value < turnProbability)
             {
                 targetDirection = bestSide;
                 straightStepCount = 0;
@@ -312,9 +378,36 @@ public class Enemy : MonoBehaviour
     Vector3 SortByLevelPriority(List<Vector3> options)
     {
         Vector3 cur = GetGridPosition(transform.position);
-        for (int i = 0; i < options.Count; i++) { Vector3 t = options[i]; int r = Random.Range(i, options.Count); options[i] = options[r]; options[r] = t; }
+        for (int i = 0; i < options.Count; i++) { Vector3 t = options[i]; int r = UnityEngine.Random.Range(i, options.Count); options[i] = options[r]; options[r] = t; }
         Vector3 best = options[0]; int min = 99;
         foreach (Vector3 d in options) { int v = GetVisitLevel(cur + d * gridSize); if (v < min) { min = v; best = d; } }
         return best;
+   }
+    IEnumerator PlayHardGlitch()
+    {
+        Camera cam = Camera.main;
+        if (cam == null) yield break;
+
+        float originalAspect = cam.aspect;
+        float originalFOV = cam.fieldOfView;
+        Vector3 originalLocalPos = cam.transform.localPosition;
+        Quaternion originalLocalRot = cam.transform.localRotation;
+
+        float elapsed = 0f;
+        while (elapsed < glitchDuration)
+        {
+            cam.transform.localPosition = originalLocalPos + UnityEngine.Random.insideUnitSphere * shakeIntensity;
+            cam.aspect = originalAspect * UnityEngine.Random.Range(1f / stretchIntensity, stretchIntensity);
+            cam.fieldOfView = originalFOV + UnityEngine.Random.Range(-15f, 15f);
+            grain.enabled.value = true;
+            elapsed += Time.unscaledDeltaTime;
+            yield return null;
+        }
+
+        cam.ResetAspect();
+        grain.enabled.value = false;
+        cam.fieldOfView = originalFOV;
+        cam.transform.localPosition = originalLocalPos;
+        cam.transform.localRotation = originalLocalRot;
     }
 }
