@@ -1,47 +1,28 @@
-using Unity.AI.Navigation;
 using UnityEngine;
-using System.Collections;
 
 public class Floor : MonoBehaviour
 {
+    [Header("フロアプレハブ")]
     public GameObject[] CenterFloors;
     public GameObject[] CornerFloors;
     public GameObject[] SideFloors;
     public GameObject GoalFloor;
 
-    public NavMeshSurface navMeshSurface;
-
+    [Header("マップ設定")]
     public int width = 5;
     public int height = 5;
-
     public float size = 44f;
+
+    void Start()
+    {
+        // ナビメッシュは使わないので、即座に生成を開始するだけでOKです
+        GenerateFloor();
+    }
 
     GameObject GetRandom(GameObject[] prefabs)
     {
-        return prefabs[
-            Random.Range(0, prefabs.Length)
-        ];
-
-    }
-
-    IEnumerator Start()
-    {
-        // 1. まず床をすべて生成する
-        GenerateFloor();
-
-        // 2. 1フレーム待機（重要！）
-        // これを挟むことで、Unityが生成された全オブジェクトの衝突判定（Collider）を正しく認識します
-        yield return null;
-        Physics.SyncTransforms(); // Collider情報を強制同期
-
-        yield return new WaitForFixedUpdate(); // 物理系の反映を待つ
-
-        if (navMeshSurface != null)
-        {
-            // 3. 全てのフロアが完全に配置された状態で、NavMeshを再構築する
-            navMeshSurface.BuildNavMesh();
-            Debug.Log("NavMesh has been rebuilt.");
-        }
+        if (prefabs == null || prefabs.Length == 0) return null;
+        return prefabs[Random.Range(0, prefabs.Length)];
     }
 
     void GenerateFloor()
@@ -50,24 +31,28 @@ public class Floor : MonoBehaviour
         {
             for (int z = 0; z < height; z++)
             {
-                GameObject prefabToSpawn;
+                GameObject prefabToSpawn = null;
 
+                // 特殊な中心地点 (影廊の開始地点のような場所)
                 bool isSpecialCenter = (x == 0 && z == 2);
-
+                // ゴール地点
                 bool isGoal = (x == width - 1 && z == 2);
 
+                // 角の判定
                 bool isCorner =
                     (x == 0 && z == 0) ||
                     (x == 0 && z == height - 1) ||
                     (x == width - 1 && z == 0) ||
                     (x == width - 1 && z == height - 1);
 
+                // 外周（エッジ）の判定
                 bool isEdge =
                     x == 0 ||
                     x == width - 1 ||
                     z == 0 ||
                     z == height - 1;
 
+                // --- プレハブの選定 ---
                 if (isSpecialCenter)
                 {
                     prefabToSpawn = GetRandom(CenterFloors);
@@ -89,67 +74,40 @@ public class Floor : MonoBehaviour
                     prefabToSpawn = GetRandom(CenterFloors);
                 }
 
-                Vector3 pos = new Vector3(
-                    x * size,
-                    0,
-                    z * size
-                );
+                if (prefabToSpawn == null) continue;
 
+                // --- 座標の計算 ---
+                Vector3 pos = new Vector3(x * size, 0, z * size);
                 Quaternion rot = Quaternion.identity;
 
+                // --- 回転の計算 ---
                 if (isCorner)
                 {
-                    // 左下
-                    if (x == 0 && z == 0)
-                    {
-                        rot = Quaternion.Euler(0, 0, 0);
-                    }
-                    // 左上
-                    else if (x == 0 && z == height - 1)
-                    {
-                        rot = Quaternion.Euler(0, 90, 0);
-                    }
-                    // 右上
-                    else if (x == width - 1 && z == height - 1)
-                    {
-                        rot = Quaternion.Euler(0, 180, 0);
-                    }
-                    // 右下
-                    else if (x == width - 1 && z == 0)
-                    {
-                        rot = Quaternion.Euler(0, 270, 0);
-                    }
+                    if (x == 0 && z == 0) rot = Quaternion.Euler(0, 0, 0); // 左下
+                    else if (x == 0 && z == height - 1) rot = Quaternion.Euler(0, 90, 0); // 左上
+                    else if (x == width - 1 && z == height - 1) rot = Quaternion.Euler(0, 180, 0); // 右上
+                    else if (x == width - 1 && z == 0) rot = Quaternion.Euler(0, 270, 0); // 右下
                 }
                 else if (isEdge && !isGoal && !isSpecialCenter)
                 {
-                    // 下辺
-                    if (z == 0 && x >= 1 && x <= width - 2)
-                    {
-                        rot = Quaternion.Euler(0, 0, 0);
-                    }
-                    // 左辺
-                    else if (x == 0 && z >= 1 && z <= height - 2)
-                    {
-                        rot = Quaternion.Euler(0, 90, 0);
-                    }
-                    // 上辺
-                    else if (z == height - 1 && x >= 1 && x <= width - 2)
-                    {
-                        rot = Quaternion.Euler(0, 180, 0);
-                    }
-                    // 右辺
-                    else if (x == width - 1 && z >= 1 && z <= height - 2)
-                    {
-                        rot = Quaternion.Euler(0, 270, 0);
-                    }
+                    if (z == 0) rot = Quaternion.Euler(0, 0, 0); // 下辺
+                    else if (x == 0) rot = Quaternion.Euler(0, 90, 0); // 左辺
+                    else if (z == height - 1) rot = Quaternion.Euler(0, 180, 0); // 上辺
+                    else if (x == width - 1) rot = Quaternion.Euler(0, 270, 0); // 右辺
                 }
 
-                Instantiate(prefabToSpawn, pos, rot);
-
+                // --- 生成 (修正ポイント：1回だけInstantiateする) ---
                 GameObject obj = Instantiate(prefabToSpawn, pos, rot);
 
-                Debug.Log(obj.transform.Find("Floor").localPosition);
+                // ヒエラルキーが散らからないようにこのオブジェクトの子にする（任意）
+                obj.transform.SetParent(this.transform);
 
+                // デバッグログ（プレハブ内に"Floor"という子オブジェクトがある前提のコード）
+                Transform floorChild = obj.transform.Find("Floor");
+                if (floorChild != null)
+                {
+                    Debug.Log($"Floor {x},{z} position: {floorChild.localPosition}");
+                }
             }
         }
     }
