@@ -31,7 +31,6 @@ public class Player : MonoBehaviour
     [SerializeField]
     private Camera m_Camera;
 
-    [SerializeField]
     private GameObject m_Enemy;
 
     Vector3 camera_m;
@@ -96,6 +95,9 @@ public class Player : MonoBehaviour
     {
         volume.profile.TryGetSettings(out bloom);
         headBob_.Setup(m_Camera, 1.0f);
+
+        GameObject enemy = GameObject.FindGameObjectWithTag("Enemy");
+        if (enemy != null) m_Enemy = enemy;
     }
 
     private void Update()
