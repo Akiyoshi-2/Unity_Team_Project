@@ -129,6 +129,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Enemy
   moveSpeed: 3
+  chaseSpeed: 5
   rotationSpeed: 10
   gridSize: 2
   turnProbability: 0.5
@@ -145,6 +146,10 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 64
   showVisitLevels: 1
+  volume: {fileID: 3960170807362732518, guid: 1c70cce29566a5b449eb77601dd3d7ea, type: 3}
+  glitchDuration: 0.3
+  shakeIntensity: 0.5
+  stretchIntensity: 2
 --- !u!114 &3644433505241190372
 MonoBehaviour:
   m_ObjectHideFlags: 0

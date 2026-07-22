@@ -351,24 +351,68 @@ public class Enemy : MonoBehaviour
     int GetVisitLevel(Vector3 pos) => visitLevelMap.ContainsKey(pos) ? visitLevelMap[pos] : 0;
 
     // 可視化デバッグ
+    // 可視化デバッグ
     void OnDrawGizmos()
     {
-        if (!showVisitLevels || !Application.isPlaying) return;
-
-        foreach (var entry in visitLevelMap)
+        // 1. 訪問レベルのタイル表示 (既存機能)
+        if (showVisitLevels && Application.isPlaying)
         {
-            int level = entry.Value;
-            Color c = Color.cyan; // Level 1
-            if (level == 2) c = Color.blue;
-            if (level >= 3) c = Color.magenta;
+            foreach (var entry in visitLevelMap)
+            {
+                int level = entry.Value;
+                Color c = Color.cyan; // Level 1
+                if (level == 2) c = Color.blue;
+                if (level >= 3) c = Color.magenta;
 
-            c.a = 0.4f;
-            Gizmos.color = c;
-            Gizmos.DrawCube(entry.Key + Vector3.up * 0.1f, new Vector3(gridSize * 0.9f, 0.1f, gridSize * 0.9f));
+                c.a = 0.3f;
+                Gizmos.color = c;
+                Gizmos.DrawCube(entry.Key + Vector3.up * 0.1f, new Vector3(gridSize * 0.9f, 0.1f, gridSize * 0.9f));
+            }
         }
 
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireCube(currentTargetCell + Vector3.up * 0.1f, new Vector3(gridSize, 0.2f, gridSize));
+        // 2. 視野角 (FOV) の可視化
+        Vector3 eyePos = transform.position + Vector3.up; // 足元ではなく少し高い位置から表示
+
+        // 状態によって色を変更
+        Color fovColor = Color.yellow; // 通常時（Patrol）
+        if (currentState == State.Chase) fovColor = Color.red; // 追跡時
+        else if (currentState == State.Search) fovColor = new Color(1f, 0.5f, 0f); // 捜索時（オレンジ）
+
+        Gizmos.color = fovColor;
+
+        // 視野の境界線を描画
+        Vector3 leftBoundary = Quaternion.Euler(0, -fovAngle * 0.5f, 0) * transform.forward;
+        Vector3 rightBoundary = Quaternion.Euler(0, fovAngle * 0.5f, 0) * transform.forward;
+
+        Gizmos.DrawRay(eyePos, leftBoundary * detectionRange);
+        Gizmos.DrawRay(eyePos, rightBoundary * detectionRange);
+
+        // 扇形の外周を補完する線（より視野らしく見せるため）
+        int segments = 10;
+        Vector3 prevPoint = eyePos + leftBoundary * detectionRange;
+        for (int i = 1; i <= segments; i++)
+        {
+            float currentAngle = -fovAngle * 0.5f + (fovAngle / segments) * i;
+            Vector3 nextDir = Quaternion.Euler(0, currentAngle, 0) * transform.forward;
+            Vector3 nextPoint = eyePos + nextDir * detectionRange;
+            Gizmos.DrawLine(prevPoint, nextPoint);
+            prevPoint = nextPoint;
+        }
+
+        // 3. 現在のターゲットマスの表示 (既存機能)
+        if (Application.isPlaying)
+        {
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireCube(currentTargetCell + Vector3.up * 0.1f, new Vector3(gridSize, 0.2f, gridSize));
+
+            // 追跡中、最後に見失った場所も表示
+            if (currentState == State.Search)
+            {
+                Gizmos.color = Color.white;
+                Gizmos.DrawWireSphere(lastSeenCell + Vector3.up * 0.5f, 0.5f);
+                Gizmos.DrawLine(eyePos, lastSeenCell + Vector3.up * 0.5f);
+            }
+        }
     }
 
     // ヘルパー
