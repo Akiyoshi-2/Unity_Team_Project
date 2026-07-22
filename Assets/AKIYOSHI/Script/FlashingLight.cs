@@ -2,25 +2,46 @@ using UnityEngine;
 
 public class FlashingLight : MonoBehaviour
 {
-    public Transform enemy;
     public Light flashingLight;
-    public float flashingDistance = 10f;
+    public float flashingDistance = 10.0f;
 
     private float timer;
     private float nextBlinkTime;
 
-    private void Start()
+    void Start()
     {
         SetNextBlink();
     }
 
-    private void Update()
+    void Update()
     {
-        if (enemy == null || flashingLight == null) return;
+        if (flashingLight == null)
+            return;
 
-        float distance = Vector3.Distance(transform.position, enemy.position);
+        GameObject[] enemies = GameObject.FindGameObjectsWithTag("Enemy");
 
-        if (distance <= flashingDistance)
+        float nearestDistance = Mathf.Infinity;
+
+        foreach (GameObject enemy in enemies)
+        {
+            float distance = Vector3.Distance(transform.position, enemy.transform.position);
+
+            if (distance < nearestDistance)
+            {
+                nearestDistance = distance;
+            }
+        }
+
+        // “G‚ª1‘Ì‚à‚¢‚È‚¢ê‡
+        if (nearestDistance == Mathf.Infinity)
+        {
+            flashingLight.enabled = true;
+            flashingLight.intensity = 1f;
+            return;
+        }
+
+        // ˆê”Ô‹ß‚¢“G‚ª‹ß‚¢ê‡
+        if (nearestDistance <= flashingDistance)
         {
             timer += Time.deltaTime;
 
@@ -35,13 +56,14 @@ public class FlashingLight : MonoBehaviour
         }
         else
         {
+            // “G‚ª‰“‚¢ê‡
             flashingLight.enabled = true;
             flashingLight.intensity = 1f;
             timer = 0f;
         }
     }
 
-    private void SetNextBlink()
+    void SetNextBlink()
     {
         nextBlinkTime = Random.Range(0.01f, 0.4f);
     }
