@@ -13,7 +13,6 @@ GameObject:
   - component: {fileID: 7406634685292096255}
   - component: {fileID: 7230706452593322166}
   - component: {fileID: 5091736809606875742}
-  - component: {fileID: 1375361702301038690}
   - component: {fileID: 3128219929233503222}
   - component: {fileID: -1395849718248455350}
   m_Layer: 0
@@ -143,28 +142,6 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
---- !u!195 &1375361702301038690
-NavMeshAgent:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3570015039395952704}
-  m_Enabled: 1
-  m_AgentTypeID: 0
-  m_Radius: 0.5
-  m_Speed: 30
-  m_Acceleration: 45
-  avoidancePriority: 50
-  m_AngularSpeed: 999
-  m_StoppingDistance: 5
-  m_AutoTraverseOffMeshLink: 1
-  m_AutoBraking: 0
-  m_AutoRepath: 1
-  m_Height: 1
-  m_BaseOffset: 0.5
-  m_WalkableMask: 4294967295
-  m_ObstacleAvoidanceType: 4
 --- !u!114 &3128219929233503222
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -177,13 +154,28 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8381697643b87034ba056a17be462d73, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ChaseEnemy
-  detectionRange: 10
-  stopDistance: 0.1
+  moveSpeed: 3
   chaseSpeed: 30
-  patrolSpeed: 10
-  waitTimeAtPoint: 2
-  patrolPoints: []
-  player: {fileID: 0}
+  rotationSpeed: 15
+  gridSize: 2
+  turnProbability: 0.4
+  minStraightSteps: 2
+  detectionRange: 50
+  killRange: 1.2
+  searchWaitTime: 2
+  playerTag: Player
+  wallLayer:
+    serializedVersion: 2
+    m_Bits: 0
+  wallByEnemyLayer:
+    serializedVersion: 2
+    m_Bits: 0
+  showVisitLevels: 1
+  volume: {fileID: 3960170807362732518, guid: 9253af7e5102d0641a25d989d76bf499, type: 3}
+  glitchDuration: 0.3
+  shakeIntensity: 0.5
+  stretchIntensity: 2
+  glitchCooldown: 15
 --- !u!114 &-1395849718248455350
 MonoBehaviour:
   m_ObjectHideFlags: 0

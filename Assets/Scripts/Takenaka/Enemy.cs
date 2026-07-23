@@ -39,7 +39,6 @@ public class Enemy : MonoBehaviour
     private int straightStepCount = 0;
     private float searchTimer = 0f;
 
-    // 訪問レベル管理 (0～3)
     private Dictionary<Vector3, int> visitLevelMap = new Dictionary<Vector3, int>();
     private const int MAX_VISIT_LEVEL = 3;
 
@@ -63,6 +62,8 @@ public class Enemy : MonoBehaviour
     [SerializeField] private float glitchDuration = 0.3f;
     [SerializeField] private float shakeIntensity = 0.5f;
     [SerializeField] private float stretchIntensity = 2.0f;
+    [SerializeField] private float glitchCooldown = 5.0f; // 再発動までの秒数
+    private float lastGlitchTime = -999f;
 
     void Start()
     {
@@ -138,7 +139,6 @@ public class Enemy : MonoBehaviour
         }
     }
 
-    // 視界判定
     bool CanSeePlayer()
     {
         float dist = Vector3.Distance(transform.position, player.position);
@@ -158,50 +158,50 @@ public class Enemy : MonoBehaviour
         return false;
     }
 
-    // 発見時のみリセット
     void StartChase()
     {
         if (currentState != State.Chase)
         {
             currentState = State.Chase;
-            visitLevelMap.Clear(); // 発見した瞬間に今までの記憶をリセット
+            visitLevelMap.Clear();
             Debug.Log("プレイヤー発見！レベルをリセットしました");
-            StartCoroutine(PlayHardGlitch());
+
+            // --- クールタイム判定 ---
+            if (Time.time >= lastGlitchTime + glitchCooldown)
+            {
+                StartCoroutine(PlayHardGlitch());
+                lastGlitchTime = Time.time;
+            }
         }
     }
 
-    // 徘徊ロジック
     void PatrolLogic()
     {
         float distToTarget = Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), currentTargetCell);
         if (distToTarget < 0.05f)
         {
             Vector3 currentPos = GetGridPosition(transform.position);
-            AddVisitLevel(currentPos); // 移動完了時にレベル加算
+            AddVisitLevel(currentPos);
             UpdateNextPatrolTarget(currentPos);
         }
         MoveTowardsTargetSafe();
     }
 
-    // 追跡ロジック
     void ChaseLogic()
     {
         vignette.enabled.value = true;
         chromaticAberration.enabled.value = true;
 
         float distance = Vector3.Distance(player.position, this.transform.position);
-
         float t = 1f - Mathf.InverseLerp(0f, detectionRange, distance);
-
         float value = t * 0.4f;
-
         vignette.intensity.value = value;
 
         float distToTarget = Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), currentTargetCell);
         if (distToTarget < 0.05f)
         {
             Vector3 currentPos = GetGridPosition(transform.position);
-            AddVisitLevel(currentPos); // 追跡中もレベル加算
+            AddVisitLevel(currentPos);
 
             Vector3 playerGridPos = GetGridPosition(player.position);
             targetDirection = GetBestDirectionTowards(currentPos, playerGridPos);
@@ -210,10 +210,9 @@ public class Enemy : MonoBehaviour
         MoveTowardsTargetSafe();
     }
 
-    // 捜索ロジック
     void SearchLogic()
     {
-         vignette.enabled.value = false;
+        vignette.enabled.value = false;
         chromaticAberration.enabled.value = false;
 
         float distToTarget = Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), currentTargetCell);
@@ -224,7 +223,7 @@ public class Enemy : MonoBehaviour
             if (distToTarget < 0.05f)
             {
                 Vector3 currentPos = GetGridPosition(transform.position);
-                AddVisitLevel(currentPos); // 捜索中もレベル加算
+                AddVisitLevel(currentPos);
                 targetDirection = GetBestDirectionTowards(currentPos, lastSeenCell);
                 currentTargetCell = currentPos + targetDirection * gridSize;
             }
@@ -241,7 +240,6 @@ public class Enemy : MonoBehaviour
         }
     }
 
-    // 次の徘徊先決定
     void UpdateNextPatrolTarget(Vector3 currentPos)
     {
         Vector3 fwd = targetDirection;
@@ -278,7 +276,6 @@ public class Enemy : MonoBehaviour
         currentTargetCell = currentPos + targetDirection * gridSize;
     }
 
-    // 目標への最短グリッド方向取得
     Vector3 GetBestDirectionTowards(Vector3 currentGrid, Vector3 targetGrid)
     {
         Vector3[] dirs = { Vector3.forward, Vector3.back, Vector3.right, Vector3.left };
@@ -300,14 +297,9 @@ public class Enemy : MonoBehaviour
         return bestDir;
     }
 
-    // 安全な移動処理
     void MoveTowardsTargetSafe()
     {
-        // 状態に合わせてスピードを切り替える
-        // 追跡中(Chase)は chaseSpeed、それ以外は moveSpeed を使う
         float currentSpeed = (currentState == State.Chase) ? chaseSpeed : moveSpeed;
-
-        // 追跡中は回転も少し鋭くする（オプション）
         float currentRotationSpeed = (currentState == State.Chase) ? rotationSpeed * 1.5f : rotationSpeed;
 
         if (targetDirection != Vector3.zero)
@@ -316,7 +308,6 @@ public class Enemy : MonoBehaviour
             transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot, currentRotationSpeed * 100f * Time.deltaTime);
         }
 
-        // currentSpeed を使って移動
         Vector3 nextPos = Vector3.MoveTowards(transform.position, new Vector3(currentTargetCell.x, transform.position.y, currentTargetCell.z), currentSpeed * Time.deltaTime);
 
         if (!Physics.SphereCast(transform.position + Vector3.up, 0.4f, (nextPos - transform.position).normalized, out _, Vector3.Distance(transform.position, nextPos), combinedMoveMask))
@@ -329,7 +320,6 @@ public class Enemy : MonoBehaviour
         }
     }
 
-    // プレイヤー接触
     private void OnCollisionEnter(Collision collision)
     {
         if (collision.gameObject.CompareTag(playerTag))
@@ -338,7 +328,6 @@ public class Enemy : MonoBehaviour
         }
     }
 
-    // レベル管理
     void AddVisitLevel(Vector3 pos)
     {
         if (visitLevelMap.ContainsKey(pos))
@@ -350,44 +339,38 @@ public class Enemy : MonoBehaviour
 
     int GetVisitLevel(Vector3 pos) => visitLevelMap.ContainsKey(pos) ? visitLevelMap[pos] : 0;
 
-    // 可視化デバッグ
-    // 可視化デバッグ
     void OnDrawGizmos()
     {
-        // 1. 訪問レベルのタイル表示 (既存機能)
         if (showVisitLevels && Application.isPlaying)
         {
             foreach (var entry in visitLevelMap)
             {
                 int level = entry.Value;
-                Color c = Color.cyan; // Level 1
+                Color c = Color.cyan;
                 if (level == 2) c = Color.blue;
                 if (level >= 3) c = Color.magenta;
-
-                c.a = 0.3f;
+                c.a = 0.2f;
                 Gizmos.color = c;
-                Gizmos.DrawCube(entry.Key + Vector3.up * 0.1f, new Vector3(gridSize * 0.9f, 0.1f, gridSize * 0.9f));
+                Gizmos.DrawCube(entry.Key + Vector3.up * 0.05f, new Vector3(gridSize * 0.9f, 0.1f, gridSize * 0.9f));
             }
         }
 
-        // 2. 視野角 (FOV) の可視化
-        Vector3 eyePos = transform.position + Vector3.up; // 足元ではなく少し高い位置から表示
+        Gizmos.color = Color.red;
+        DrawGizmoCircle(transform.position + Vector3.up * 0.2f, killRange);
+        Gizmos.color = new Color(1f, 0f, 0f, 0.15f);
+        Gizmos.DrawSphere(transform.position + Vector3.up * 0.2f, killRange);
 
-        // 状態によって色を変更
-        Color fovColor = Color.yellow; // 通常時（Patrol）
-        if (currentState == State.Chase) fovColor = Color.red; // 追跡時
-        else if (currentState == State.Search) fovColor = new Color(1f, 0.5f, 0f); // 捜索時（オレンジ）
+        Vector3 eyePos = transform.position + Vector3.up;
+        Color fovColor = Color.yellow;
+        if (currentState == State.Chase) fovColor = Color.red;
+        else if (currentState == State.Search) fovColor = new Color(1f, 0.5f, 0f);
 
         Gizmos.color = fovColor;
-
-        // 視野の境界線を描画
         Vector3 leftBoundary = Quaternion.Euler(0, -fovAngle * 0.5f, 0) * transform.forward;
         Vector3 rightBoundary = Quaternion.Euler(0, fovAngle * 0.5f, 0) * transform.forward;
-
         Gizmos.DrawRay(eyePos, leftBoundary * detectionRange);
         Gizmos.DrawRay(eyePos, rightBoundary * detectionRange);
 
-        // 扇形の外周を補完する線（より視野らしく見せるため）
         int segments = 10;
         Vector3 prevPoint = eyePos + leftBoundary * detectionRange;
         for (int i = 1; i <= segments; i++)
@@ -399,13 +382,10 @@ public class Enemy : MonoBehaviour
             prevPoint = nextPoint;
         }
 
-        // 3. 現在のターゲットマスの表示 (既存機能)
         if (Application.isPlaying)
         {
-            Gizmos.color = Color.red;
+            Gizmos.color = Color.white;
             Gizmos.DrawWireCube(currentTargetCell + Vector3.up * 0.1f, new Vector3(gridSize, 0.2f, gridSize));
-
-            // 追跡中、最後に見失った場所も表示
             if (currentState == State.Search)
             {
                 Gizmos.color = Color.white;
@@ -415,7 +395,20 @@ public class Enemy : MonoBehaviour
         }
     }
 
-    // ヘルパー
+    void DrawGizmoCircle(Vector3 center, float radius)
+    {
+        int segments = 20;
+        float angleStep = 360f / segments;
+        Vector3 prevPoint = center + new Vector3(radius, 0, 0);
+        for (int i = 1; i <= segments; i++)
+        {
+            float angle = i * angleStep * Mathf.Deg2Rad;
+            Vector3 nextPoint = center + new Vector3(Mathf.Cos(angle) * radius, 0, Mathf.Sin(angle) * radius);
+            Gizmos.DrawLine(prevPoint, nextPoint);
+            prevPoint = nextPoint;
+        }
+    }
+
     Vector3 RoundVector(Vector3 v) => new Vector3(Mathf.Round(v.x), 0, Mathf.Round(v.z)).normalized;
     Vector3 GetGridPosition(Vector3 pos) => new Vector3(Mathf.Round(pos.x / gridSize) * gridSize, 0, Mathf.Round(pos.z / gridSize) * gridSize);
     void SnapToGrid() { Vector3 g = GetGridPosition(transform.position); transform.position = new Vector3(g.x, transform.position.y, g.z); }
@@ -426,7 +419,8 @@ public class Enemy : MonoBehaviour
         Vector3 best = options[0]; int min = 99;
         foreach (Vector3 d in options) { int v = GetVisitLevel(cur + d * gridSize); if (v < min) { min = v; best = d; } }
         return best;
-   }
+    }
+
     IEnumerator PlayHardGlitch()
     {
         Camera cam = Camera.main;
@@ -435,7 +429,6 @@ public class Enemy : MonoBehaviour
         float originalAspect = cam.aspect;
         float originalFOV = cam.fieldOfView;
         Vector3 originalLocalPos = cam.transform.localPosition;
-        Quaternion originalLocalRot = cam.transform.localRotation;
 
         float elapsed = 0f;
         while (elapsed < glitchDuration)
@@ -452,6 +445,5 @@ public class Enemy : MonoBehaviour
         grain.enabled.value = false;
         cam.fieldOfView = originalFOV;
         cam.transform.localPosition = originalLocalPos;
-        cam.transform.localRotation = originalLocalRot;
     }
 }

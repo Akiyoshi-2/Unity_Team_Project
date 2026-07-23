@@ -1,177 +1,439 @@
-using UnityEngine;
-using UnityEngine.AI;
+using System;
+using System.Collections;
 using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.Rendering.PostProcessing;
 
-
-// 追跡と徘徊の切り替えを実装したChaseEnemyクラス
-// - プレイヤーが検出範囲内にいる場合は追跡し、いない場合は徘徊する
-// - 徘徊ポイントはタグ「PatrolPoints」を持つオブジェクトから自動的に取得
-// - プレイヤーに触れたときにプレイヤーを破壊して捕まえたことを示す
-// - デバッグ用に検出範囲を赤いワイヤースフィアで表示
-
-[RequireComponent(typeof(NavMeshAgent))]
-public class ChaseEnemy : MonoBehaviour
+public class EnemyNose : MonoBehaviour
 {
-    [Header("追跡設定")]
-    [SerializeField] private float detectionRange = 10f;
-    [SerializeField] private float stopDistance = 0.1f;
-    [SerializeField] private float chaseSpeed = 30f;   // 追跡時の速度
+    [Header("移動設定")]
+    public float moveSpeed = 3.0f;
+    public float chaseSpeed = 5.0f;
+    public float rotationSpeed = 15.0f;
+    public float gridSize = 2.0f;
+    [Range(0, 1)]
+    public float turnProbability = 0.4f;
+    public int minStraightSteps = 2;
 
-    [Header("徘徊設定")]
-    [SerializeField] private float patrolSpeed = 10f;  // 徘徊時の速度
-    [SerializeField] private float waitTimeAtPoint = 2f;
-    [SerializeField] private List<Transform> patrolPoints = new List<Transform>();
+    [Header("検知設定")]
+    public float detectionRange = 10.0f; // これが円の半径になります
+    public float killRange = 1.2f;
+    // fovAngle は削除しました
+    public float searchWaitTime = 2.0f;
 
-    [SerializeField] GameObject player;
+    [Header("レイヤー・タグ設定")]
+    public string playerTag = "Player";
+    public LayerMask wallLayer;
+    public LayerMask wallByEnemyLayer;
 
-    private NavMeshAgent agent;
-    private Transform playerTransform;
-    private int currentPatrolIndex = 0;
-    private float patrolTimer = 0f;
-    private bool isChasing = false;
+    [Header("デバッグ")]
+    public bool showVisitLevels = true;
+
+    private enum State { Patrol, Chase, Search }
+    private State currentState = State.Patrol;
+
+    private Vector3 targetDirection;
+    private Transform player;
+    private Vector3 currentTargetCell;
+    private Vector3 lastSeenCell;
+    private int straightStepCount = 0;
+    private float searchTimer = 0f;
+
+    private Dictionary<Vector3, int> visitLevelMap = new Dictionary<Vector3, int>();
+    private const int MAX_VISIT_LEVEL = 3;
+
+    private LayerMask combinedMoveMask;
+
+    [SerializeField]
+    private PostProcessVolume volume = null;
+
+    private Grain grain;
+    private Vignette vignette;
+    private ChromaticAberration chromaticAberration;
+
+    [NonSerialized]
+    public bool flashLightHit = false;
+    private bool stunFlg = false;
+    private float saveChaseSpeed = 0f;
+    private float saveMoveSpeed = 0f;
+    private float saveDetectionRange = 0f;
+
+    [Header("ノイズ演出設定")]
+    [SerializeField] private float glitchDuration = 0.3f;
+    [SerializeField] private float shakeIntensity = 0.5f;
+    [SerializeField] private float stretchIntensity = 2.0f;
+    [SerializeField] private float glitchCooldown = 5.0f;
+    private float lastGlitchTime = -999f;
 
     void Start()
     {
-        // NavMeshAgentの取得
-        agent = GetComponent<NavMeshAgent>();
-
-        // 初期速度を徘徊速度に設定
-        agent.stoppingDistance = stopDistance;
-
-        // タグ参照による自動取得
-        GameObject[] foundPoints = GameObject.FindGameObjectsWithTag("PatrolPoints");
-
-        // 既存のポイントをクリアしてから追加
-        patrolPoints.Clear();
-
-        // 見つかったポイントをリストに追加
-        foreach (GameObject point in foundPoints)
+        if (volume != null && volume.profile != null)
         {
-            patrolPoints.Add(point.transform);
+            volume.profile.TryGetSettings(out grain);
+            volume.profile.TryGetSettings(out vignette);
+            volume.profile.TryGetSettings(out chromaticAberration);
         }
 
-        // プレイヤーの初期位置を取得
-        GameObject player = GameObject.FindGameObjectWithTag("Player");
+        combinedMoveMask = wallLayer | wallByEnemyLayer;
+        if (wallLayer == 0) wallLayer = LayerMask.GetMask("Wall");
 
-        // プレイヤーが見つかった場合のみTransformを取得
-        if (player != null) playerTransform = player.transform;
+        SnapToGrid();
+        currentTargetCell = GetGridPosition(transform.position);
+        targetDirection = transform.forward;
+
+        GameObject playerObj = GameObject.FindGameObjectWithTag(playerTag);
+        if (playerObj != null) player = playerObj.transform;
+
+        saveChaseSpeed = chaseSpeed;
+        saveMoveSpeed = moveSpeed;
+        saveDetectionRange = detectionRange;
     }
 
     void Update()
     {
-        // プレイヤーがいない場合（初期化失敗や捕まえた後）
-        if (playerTransform == null)
+        if (player == null) return;
+
+        if (Vector3.Distance(transform.position, player.position) < killRange)
         {
-            // タグ参照による自動取得を試みる
-            GameObject p = GameObject.FindGameObjectWithTag("Player");
-
-            // プレイヤーが見つかった場合のみTransformを取得
-            if (p != null) playerTransform = p.transform;
-        }
-
-        // プレイヤーがいない場合（捕まえた後）
-        if (playerTransform == null)
-        {
-            // 追跡を停止して徘徊に戻る
-            isChasing = false;
-
-            // 速度を徘徊用に戻す
-            agent.speed = patrolSpeed; // 徘徊速度に設定
-
-            // 徘徊ポイントがある場合は徘徊を続ける
-            if (patrolPoints.Count > 0) Patrol();
+            Debug.Log("プレイヤーを捕らえました！");
+            // Destroy(player.gameObject); // 必要に応じてコメントアウト解除
             return;
         }
 
-        // プレイヤーとの距離を計算
-        float distanceToPlayer = Vector3.Distance(transform.position, playerTransform.position);
+        bool canSee = CanSeePlayer();
 
-
-        // プレイヤーが検出範囲内にいるかどうかをチェック
-        if (distanceToPlayer <= detectionRange && player.gameObject.tag == "Player")
+        // フラッシュライト等のスタン処理
+        if (flashLightHit)
         {
-            // 追跡中
-            isChasing = true;
-
-            // 速度を追跡用に設定
-            agent.speed = chaseSpeed; // 追跡速度に設定
-
-            // プレイヤーに向かって移動
-            agent.SetDestination(playerTransform.position);
-        }
-       else
-        {
-            // 範囲外で徘徊中
-            if (isChasing)
+            if (!stunFlg)
             {
-                agent.SetDestination(this.transform.position);
-                // 追跡から徘徊に切り替える際の処理
-                isChasing = false;
+                saveChaseSpeed = chaseSpeed;
+                saveMoveSpeed = moveSpeed;
+                saveDetectionRange = detectionRange;
+                stunFlg = true;
             }
+            chaseSpeed = 0;
+            moveSpeed = 0;
+            detectionRange = 0;
+        }
+        else if (!flashLightHit && stunFlg)
+        {
+            chaseSpeed = saveChaseSpeed;
+            moveSpeed = saveMoveSpeed;
+            detectionRange = saveDetectionRange;
+            stunFlg = false;
+        }
 
-            // 速度を徘徊用に戻す
-            agent.speed = patrolSpeed; // 徘徊速度に設定
+        switch (currentState)
+        {
+            case State.Patrol:
+                if (canSee) StartChase();
+                else PatrolLogic();
+                break;
 
-            // 徘徊ポイントがある場合は徘徊を続ける
-            if (patrolPoints.Count > 0)
+            case State.Chase:
+                if (canSee) ChaseLogic();
+                else currentState = State.Search;
+                break;
+
+            case State.Search:
+                if (canSee) StartChase();
+                else SearchLogic();
+                break;
+        }
+    }
+
+    // --- 変更点：距離のみで判定するロジック ---
+    bool CanSeePlayer()
+    {
+        float dist = Vector3.Distance(transform.position, player.position);
+
+        // 円形範囲内かどうかのチェック
+        if (dist <= detectionRange)
+        {
+            // 壁越しでも見つけたい場合は、以下のPhysics.Linecastのif文を消して return true; だけにしてください
+            if (!Physics.Linecast(transform.position + Vector3.up, player.position + Vector3.up, wallLayer))
             {
+                lastSeenCell = GetGridPosition(player.position);
+                return true;
+            }
+        }
+        return false;
+    }
 
-                // 追跡から徘徊に切り替える際の処理
-                Patrol();
+    void StartChase()
+    {
+        if (currentState != State.Chase)
+        {
+            currentState = State.Chase;
+            visitLevelMap.Clear();
+            Debug.Log("プレイヤー発見！追跡開始");
+
+            if (Time.time >= lastGlitchTime + glitchCooldown)
+            {
+                StartCoroutine(PlayHardGlitch());
+                lastGlitchTime = Time.time;
             }
         }
     }
 
-    void Patrol()
+    void PatrolLogic()
     {
-
-        // 現在の目的地がない場合、または目的地に到達した場合に次のポイントを設定
-        if (!agent.pathPending && agent.remainingDistance < 0.5f)
+        float distToTarget = Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), currentTargetCell);
+        if (distToTarget < 0.05f)
         {
-            // 次のポイントに向かう前に待機
-            patrolTimer += Time.deltaTime;
+            Vector3 currentPos = GetGridPosition(transform.position);
+            AddVisitLevel(currentPos);
+            UpdateNextPatrolTarget(currentPos);
+        }
+        MoveTowardsTargetSafe();
+    }
 
-            // 待機時間が経過したら次のポイントに移動
-            if (patrolTimer >= waitTimeAtPoint)
+    void ChaseLogic()
+    {
+        if (vignette != null) vignette.enabled.value = true;
+        if (chromaticAberration != null) chromaticAberration.enabled.value = true;
+
+        float distance = Vector3.Distance(player.position, this.transform.position);
+        float t = 1f - Mathf.InverseLerp(0f, detectionRange, distance);
+        if (vignette != null) vignette.intensity.value = t * 0.4f;
+
+        float distToTarget = Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), currentTargetCell);
+        if (distToTarget < 0.05f)
+        {
+            Vector3 currentPos = GetGridPosition(transform.position);
+            AddVisitLevel(currentPos);
+
+            Vector3 playerGridPos = GetGridPosition(player.position);
+            targetDirection = GetBestDirectionTowards(currentPos, playerGridPos);
+            currentTargetCell = currentPos + targetDirection * gridSize;
+        }
+        MoveTowardsTargetSafe();
+    }
+
+    void SearchLogic()
+    {
+        if (vignette != null) vignette.enabled.value = false;
+        if (chromaticAberration != null) chromaticAberration.enabled.value = false;
+
+        float distToTarget = Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), currentTargetCell);
+        float distToLastSeen = Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), lastSeenCell);
+
+        if (distToLastSeen > 0.1f)
+        {
+            if (distToTarget < 0.05f)
             {
-                // 次のポイントに移動
-                currentPatrolIndex = (currentPatrolIndex + 1) % patrolPoints.Count;
-
-                // 目的地を設定
-                agent.SetDestination(patrolPoints[currentPatrolIndex].position);
-
-                // タイマーをリセット
-                patrolTimer = 0f;
+                Vector3 currentPos = GetGridPosition(transform.position);
+                AddVisitLevel(currentPos);
+                targetDirection = GetBestDirectionTowards(currentPos, lastSeenCell);
+                currentTargetCell = currentPos + targetDirection * gridSize;
+            }
+            MoveTowardsTargetSafe();
+            searchTimer = 0f;
+        }
+        else
+        {
+            searchTimer += Time.deltaTime;
+            if (searchTimer >= searchWaitTime)
+            {
+                currentState = State.Patrol;
             }
         }
     }
 
-    // プレイヤーに触れたときの処理
-    private void OnTriggerEnter(Collider other)
+    // ... (UpdateNextPatrolTarget, GetBestDirectionTowards, MoveTowardsTargetSafe 等の中間メソッドは変更なし)
+
+    void UpdateNextPatrolTarget(Vector3 currentPos)
     {
-        // プレイヤーに触れた場合の処理
-        if (other.CompareTag("Player"))
+        Vector3 fwd = targetDirection;
+        Vector3 rgt = RoundVector(Quaternion.Euler(0, 90, 0) * fwd);
+        Vector3 lft = RoundVector(Quaternion.Euler(0, -90, 0) * fwd);
+        Vector3 bck = RoundVector(-fwd);
+
+        bool canFwd = !Physics.CheckSphere(currentPos + fwd * gridSize + Vector3.up, 0.5f, combinedMoveMask);
+        bool canRgt = !Physics.CheckSphere(currentPos + rgt * gridSize + Vector3.up, 0.5f, combinedMoveMask);
+        bool canLft = !Physics.CheckSphere(currentPos + lft * gridSize + Vector3.up, 0.5f, combinedMoveMask);
+
+        List<Vector3> sides = new List<Vector3>();
+        if (canRgt) sides.Add(rgt);
+        if (canLft) sides.Add(lft);
+
+        if (!canFwd)
         {
-            Debug.Log("プレイヤーを捕まえました！");
+            if (sides.Count > 0) targetDirection = SortByLevelPriority(sides);
+            else targetDirection = bck;
+            straightStepCount = 0;
+        }
+        else if (sides.Count > 0 && straightStepCount >= minStraightSteps)
+        {
+            Vector3 bestSide = SortByLevelPriority(sides);
+            if (GetVisitLevel(currentPos + bestSide * gridSize) < GetVisitLevel(currentPos + fwd * gridSize) || UnityEngine.Random.value < turnProbability)
+            {
+                targetDirection = bestSide;
+                straightStepCount = 0;
+            }
+            else straightStepCount++;
+        }
+        else straightStepCount++;
 
-            // プレイヤーを破壊して捕まえたことを示す
-            Destroy(other.gameObject);
+        currentTargetCell = currentPos + targetDirection * gridSize;
+    }
 
-            // プレイヤーを捕まえた後は追跡を停止して徘徊に戻る
-            playerTransform = null;
+    Vector3 GetBestDirectionTowards(Vector3 currentGrid, Vector3 targetGrid)
+    {
+        Vector3[] dirs = { Vector3.forward, Vector3.back, Vector3.right, Vector3.left };
+        Vector3 bestDir = targetDirection;
+        float minTargetDist = float.MaxValue;
 
-            // 捕まえた直後に速度を徘徊用に戻す
-            agent.speed = patrolSpeed;
+        foreach (Vector3 d in dirs)
+        {
+            if (!Physics.CheckSphere(currentGrid + d * gridSize + Vector3.up, 0.5f, combinedMoveMask))
+            {
+                float dToT = Vector3.Distance(currentGrid + d * gridSize, targetGrid);
+                if (dToT < minTargetDist)
+                {
+                    minTargetDist = dToT;
+                    bestDir = d;
+                }
+            }
+        }
+        return bestDir;
+    }
+
+    void MoveTowardsTargetSafe()
+    {
+        float currentSpeed = (currentState == State.Chase) ? chaseSpeed : moveSpeed;
+        float currentRotationSpeed = (currentState == State.Chase) ? rotationSpeed * 1.5f : rotationSpeed;
+
+        if (targetDirection != Vector3.zero)
+        {
+            Quaternion targetRot = Quaternion.LookRotation(targetDirection);
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot, currentRotationSpeed * 100f * Time.deltaTime);
+        }
+
+        Vector3 nextPos = Vector3.MoveTowards(transform.position, new Vector3(currentTargetCell.x, transform.position.y, currentTargetCell.z), currentSpeed * Time.deltaTime);
+
+        if (!Physics.SphereCast(transform.position + Vector3.up, 0.4f, (nextPos - transform.position).normalized, out _, Vector3.Distance(transform.position, nextPos), combinedMoveMask))
+        {
+            transform.position = nextPos;
+        }
+        else
+        {
+            SnapToGrid();
         }
     }
 
-    // デバッグ用に検出範囲を表示
-    private void OnDrawGizmosSelected()
+    private void OnCollisionEnter(Collision collision)
     {
-        // 検出範囲を赤いワイヤースフィアで表示
+        if (collision.gameObject.CompareTag(playerTag))
+        {
+            Debug.Log("プレイヤーに接触しました！");
+            // Destroy(collision.gameObject);
+        }
+    }
+
+    void AddVisitLevel(Vector3 pos)
+    {
+        if (visitLevelMap.ContainsKey(pos))
+        {
+            if (visitLevelMap[pos] < MAX_VISIT_LEVEL) visitLevelMap[pos]++;
+        }
+        else visitLevelMap[pos] = 1;
+    }
+
+    int GetVisitLevel(Vector3 pos) => visitLevelMap.ContainsKey(pos) ? visitLevelMap[pos] : 0;
+
+    // --- 変更点：ギズモ表示を完全な円形に変更 ---
+    void OnDrawGizmos()
+    {
+        if (showVisitLevels && Application.isPlaying)
+        {
+            foreach (var entry in visitLevelMap)
+            {
+                int level = entry.Value;
+                Color c = Color.cyan;
+                if (level == 2) c = Color.blue;
+                if (level >= 3) c = Color.magenta;
+                c.a = 0.2f;
+                Gizmos.color = c;
+                Gizmos.DrawCube(entry.Key + Vector3.up * 0.05f, new Vector3(gridSize * 0.9f, 0.1f, gridSize * 0.9f));
+            }
+        }
+
+        // 殺害範囲（赤）
         Gizmos.color = Color.red;
+        DrawGizmoCircle(transform.position + Vector3.up * 0.2f, killRange);
 
-        // 現在の位置を中心に検出範囲の半径でワイヤースフィアを描画
-        Gizmos.DrawWireSphere(transform.position, detectionRange);
+        // 索敵範囲（円形）
+        Color fovColor = Color.yellow;
+        if (currentState == State.Chase) fovColor = Color.red;
+        else if (currentState == State.Search) fovColor = new Color(1f, 0.5f, 0f);
+
+        Gizmos.color = fovColor;
+        DrawGizmoCircle(transform.position + Vector3.up * 0.2f, detectionRange);
+
+        // 範囲を薄く塗りつぶし
+        fovColor.a = 0.05f;
+        Gizmos.color = fovColor;
+        Gizmos.DrawSphere(transform.position + Vector3.up * 0.2f, detectionRange);
+
+        if (Application.isPlaying)
+        {
+            Gizmos.color = Color.white;
+            Gizmos.DrawWireCube(currentTargetCell + Vector3.up * 0.1f, new Vector3(gridSize, 0.2f, gridSize));
+        }
+    }
+
+    void DrawGizmoCircle(Vector3 center, float radius)
+    {
+        int segments = 32; // 円の滑らかさ
+        float angleStep = 360f / segments;
+        Vector3 prevPoint = center + new Vector3(radius, 0, 0);
+        for (int i = 1; i <= segments; i++)
+        {
+            float angle = i * angleStep * Mathf.Deg2Rad;
+            Vector3 nextPoint = center + new Vector3(Mathf.Cos(angle) * radius, 0, Mathf.Sin(angle) * radius);
+            Gizmos.DrawLine(prevPoint, nextPoint);
+            prevPoint = nextPoint;
+        }
+    }
+
+    Vector3 RoundVector(Vector3 v) => new Vector3(Mathf.Round(v.x), 0, Mathf.Round(v.z)).normalized;
+    Vector3 GetGridPosition(Vector3 pos) => new Vector3(Mathf.Round(pos.x / gridSize) * gridSize, 0, Mathf.Round(pos.z / gridSize) * gridSize);
+    void SnapToGrid() { Vector3 g = GetGridPosition(transform.position); transform.position = new Vector3(g.x, transform.position.y, g.z); }
+
+    Vector3 SortByLevelPriority(List<Vector3> options)
+    {
+        Vector3 cur = GetGridPosition(transform.position);
+        for (int i = 0; i < options.Count; i++) { Vector3 t = options[i]; int r = UnityEngine.Random.Range(i, options.Count); options[i] = options[r]; options[r] = t; }
+        Vector3 best = options[0]; int min = 99;
+        foreach (Vector3 d in options) { int v = GetVisitLevel(cur + d * gridSize); if (v < min) { min = v; best = d; } }
+        return best;
+    }
+
+    IEnumerator PlayHardGlitch()
+    {
+        Camera cam = Camera.main;
+        if (cam == null) yield break;
+
+        float originalAspect = cam.aspect;
+        float originalFOV = cam.fieldOfView;
+        Vector3 originalLocalPos = cam.transform.localPosition;
+
+        float elapsed = 0f;
+        while (elapsed < glitchDuration)
+        {
+            cam.transform.localPosition = originalLocalPos + UnityEngine.Random.insideUnitSphere * shakeIntensity;
+            cam.aspect = originalAspect * UnityEngine.Random.Range(1f / stretchIntensity, stretchIntensity);
+            cam.fieldOfView = originalFOV + UnityEngine.Random.Range(-15f, 15f);
+            if (grain != null) grain.enabled.value = true;
+            elapsed += Time.unscaledDeltaTime;
+            yield return null;
+        }
+
+        cam.ResetAspect();
+        if (grain != null) grain.enabled.value = false;
+        cam.fieldOfView = originalFOV;
+        cam.transform.localPosition = originalLocalPos;
     }
 }

@@ -135,8 +135,8 @@ MonoBehaviour:
   turnProbability: 0.5
   minStraightSteps: 3
   detectionRange: 50
-  killRange: 3
-  fovAngle: 90
+  killRange: 2
+  fovAngle: 360
   searchWaitTime: 2
   playerTag: Player
   wallLayer:
@@ -150,6 +150,7 @@ MonoBehaviour:
   glitchDuration: 0.3
   shakeIntensity: 0.5
   stretchIntensity: 2
+  glitchCooldown: 10
 --- !u!114 &3644433505241190372
 MonoBehaviour:
   m_ObjectHideFlags: 0
