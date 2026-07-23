@@ -100,6 +100,8 @@ public class Player : MonoBehaviour
     private int doorFlg = 0;
     private Transform door = null;
 
+    private Transform Light = null;
+
     private void Start()
     {
         volume.profile.TryGetSettings(out bloom);
@@ -250,6 +252,12 @@ public class Player : MonoBehaviour
                         door = raycastHit.transform;
                         doorFlg = 4;
                     }
+                }
+                if (hit && raycastHit.collider.tag == "Light")
+                {
+                    Light =  raycastHit.transform;
+                    Light.GetComponent<FlashingLight>().LightOn = true;
+                    Light.GetComponent<Light>().enabled = true;
                 }
             }
 
