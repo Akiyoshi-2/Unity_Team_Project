@@ -129,14 +129,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Enemy
   moveSpeed: 3
-  chaseSpeed: 5
+  chaseSpeed: 6
   rotationSpeed: 10
   gridSize: 2
   turnProbability: 0.5
   minStraightSteps: 3
-  detectionRange: 50
+  detectionRange: 20
   killRange: 2
-  fovAngle: 360
+  fovAngle: 100
   searchWaitTime: 2
   playerTag: Player
   wallLayer:
