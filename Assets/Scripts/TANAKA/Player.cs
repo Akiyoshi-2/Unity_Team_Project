@@ -36,7 +36,13 @@ public class Player : MonoBehaviour
     Vector3 camera_m;
     Vector3 player_m;
 
-    private float m_ForwardSpeed = 6f;
+    [Header("ÉvÉåÉCÉÑÅ[ê›íË")]
+    [SerializeField] private float WalkSpeed = 4f;
+    [SerializeField] private float DashSpeed = 10f;
+    [SerializeField] private float BackSideSpeed = 3f;
+    [SerializeField] private float SquatSpeed = 2f;
+
+    private float m_ForwardSpeed = 4f;
     private float m_BackSpeed = 3f;
     private float m_SideSpeed = 3f;
     private float m_RotationSpeed = 2f;
@@ -90,6 +96,9 @@ public class Player : MonoBehaviour
     private float ohudaTime = 10;
     [SerializeField]
     private float flashLightTime = 10;
+
+    private int doorFlg = 0;
+    private Transform door = null;
 
     private void Start()
     {
@@ -215,9 +224,108 @@ public class Player : MonoBehaviour
                     tagChange = true;
                 }
 
-                if (hit && raycastHit.collider.tag == "Door")
+                if (hit && raycastHit.collider.tag == "Door" && doorFlg == 0)
                 {
-                    //raycastHit.transform.localEulerAngles.y = 0;
+                    if (raycastHit.transform.localEulerAngles.y == 0)
+                    {
+                        door = raycastHit.transform;
+                        doorFlg = 1;
+                    }
+                    else if (raycastHit.transform.localEulerAngles.y == 110)
+                    {
+                        door = raycastHit.transform;
+                        doorFlg = 2;
+                    }
+                }
+
+                if (hit && raycastHit.collider.tag == "wDoor" && doorFlg == 0)
+                {
+                    if (raycastHit.transform.localPosition.z == 0.75)
+                    {
+                        door = raycastHit.transform;
+                        doorFlg = 3;
+                    }
+                    else if (raycastHit.transform.localPosition.z == -0.75)
+                    {
+                        door = raycastHit.transform;
+                        doorFlg = 4;
+                    }
+                }
+            }
+
+            if (doorFlg == 1)
+            {
+                door.GetComponent<Collider>().isTrigger = true;
+                door.transform.localEulerAngles = new Vector3(
+                    door.localEulerAngles.x,
+                    door.localEulerAngles.y + (220 * Time.deltaTime),
+                    door.localEulerAngles.z);
+
+                if (door.localEulerAngles.y >= 110)
+                {
+                    door.transform.localEulerAngles = new Vector3(
+                    door.localEulerAngles.x,
+                    110,
+                    door.localEulerAngles.z);
+                    door.GetComponent<Collider>().isTrigger = false;
+                    door = null;
+                    doorFlg = 0;
+                }
+            }
+
+            if (doorFlg == 2)
+            {
+                door.GetComponent<Collider>().isTrigger = true;
+                door.transform.localEulerAngles = new Vector3(
+                    door.localEulerAngles.x,
+                    door.localEulerAngles.y - (220 * Time.deltaTime),
+                    door.localEulerAngles.z);
+
+                if (door.localEulerAngles.y <= 0 || door.localEulerAngles.y >= 150)
+                {
+                    door.transform.localEulerAngles = new Vector3(
+                    door.localEulerAngles.x,
+                    0,
+                    door.localEulerAngles.z);
+                    door.GetComponent<Collider>().isTrigger = false;
+                    door = null;
+                    doorFlg = 0;
+                }
+            }
+
+            if (doorFlg == 3)
+            {
+                door.localPosition = new Vector3(
+                    door.localPosition.x,
+                    door.localPosition.y,
+                    door.localPosition.z - (3.0f * Time.deltaTime));
+
+                if (door.localPosition.z <= -0.75)
+                {
+                    door.localPosition = new Vector3(
+                    door.localPosition.x,
+                    door.localPosition.y,
+                    -0.75f);
+                    door = null;
+                    doorFlg = 0;
+                }
+            }
+
+            if (doorFlg == 4)
+            {
+                door.localPosition = new Vector3(
+                    door.localPosition.x,
+                    door.localPosition.y,
+                    door.localPosition.z + (3.0f * Time.deltaTime));
+
+                if (door.localPosition.z >= 0.75)
+                {
+                    door.localPosition = new Vector3(
+                    door.localPosition.x,
+                    door.localPosition.y,
+                    0.75f);
+                    door = null;
+                    doorFlg = 0;
                 }
             }
 
@@ -264,16 +372,16 @@ public class Player : MonoBehaviour
 
             if (walk && Input.GetKey(KeyCode.LeftShift) && !Squat && !staminaOut)
             {
-                m_ForwardSpeed = 10;
-                m_SideSpeed = 3;
-                m_BackSpeed = 3;
+                m_ForwardSpeed = DashSpeed;
+                m_SideSpeed = BackSideSpeed;
+                m_BackSpeed = BackSideSpeed;
                 run = true;
             }
             else if (!Squat && !staminaOut)
             {
-                m_ForwardSpeed = 6;
-                m_SideSpeed = 3;
-                m_BackSpeed = 3;
+                m_ForwardSpeed = WalkSpeed;
+                m_SideSpeed = BackSideSpeed;
+                m_BackSpeed = BackSideSpeed;
                 run = false;
             }
             else
@@ -399,9 +507,9 @@ public class Player : MonoBehaviour
 
         if ((staminaOut || tagChange) && !staminam)
         {
-            m_ForwardSpeed = 2f;
-            m_BackSpeed = 2f;
-            m_SideSpeed = 2f;
+            m_ForwardSpeed = SquatSpeed;
+            m_BackSpeed = SquatSpeed;
+            m_SideSpeed = SquatSpeed;
             stamina += Time.deltaTime * 10 / staminaHealTime;
             if (stamina >= 10.0f)
             {
@@ -463,9 +571,9 @@ public class Player : MonoBehaviour
                 this.transform.localScale.x,
                 0.5f,
                 this.transform.localScale.z);
-            m_ForwardSpeed = 2f;
-            m_BackSpeed = 2f;
-            m_SideSpeed = 2f;
+            m_ForwardSpeed = SquatSpeed;
+            m_BackSpeed = SquatSpeed;
+            m_SideSpeed = SquatSpeed;
             SquatMove = false;
         }
 
@@ -506,9 +614,9 @@ public class Player : MonoBehaviour
             this.transform.localScale.x,
             1,
             this.transform.localScale.z);
-            m_ForwardSpeed = 6;
-            m_SideSpeed = 5;
-            m_BackSpeed = 5;
+            m_ForwardSpeed = WalkSpeed;
+            m_SideSpeed = BackSideSpeed;
+            m_BackSpeed = BackSideSpeed;
             SquatMove = false;
         }
     }
