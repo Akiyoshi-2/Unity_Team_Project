@@ -17,7 +17,7 @@ GameObject:
   - component: {fileID: 7151681480380054698}
   - component: {fileID: 5694823867539862883}
   m_Layer: 0
-  m_Name: Enemy
+  m_Name: EarEnemy
   m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -71,7 +71,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: c0defb5ed1766a94ab90b7b4e0d7471f, type: 2}
+  - {fileID: 2100000, guid: 0d477753393bc4649914e5479730733a, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -134,7 +134,7 @@ MonoBehaviour:
   gridSize: 2
   turnProbability: 0.5
   minStraightSteps: 3
-  detectionRange: 50
+  detectionRange: 35
   killRange: 2
   fovAngle: 360
   searchWaitTime: 2
