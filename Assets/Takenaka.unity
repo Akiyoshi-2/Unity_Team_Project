@@ -194,7 +194,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1520646341354805402, guid: 0845d2649dd2bbd49b71647f9a94ae35, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -362.22
+      value: -361.52
       objectReference: {fileID: 0}
     - target: {fileID: 1520646341354805402, guid: 0845d2649dd2bbd49b71647f9a94ae35, type: 3}
       propertyPath: m_LocalPosition.y
@@ -823,6 +823,18 @@ PrefabInstance:
     - target: {fileID: 2736654922954994902, guid: b0ceca8d93217494db194f9379e206ae, type: 3}
       propertyPath: m_Name
       value: Enemy
+      objectReference: {fileID: 0}
+    - target: {fileID: 6891097300607218024, guid: b0ceca8d93217494db194f9379e206ae, type: 3}
+      propertyPath: doorBreakTime
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6891097300607218024, guid: b0ceca8d93217494db194f9379e206ae, type: 3}
+      propertyPath: doorCheckOffset.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6891097300607218024, guid: b0ceca8d93217494db194f9379e206ae, type: 3}
+      propertyPath: doorCheckOffset.z
+      value: 1.47
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
