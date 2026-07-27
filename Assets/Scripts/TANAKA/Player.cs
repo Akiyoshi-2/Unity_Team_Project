@@ -29,6 +29,11 @@ public class Player : MonoBehaviour
     private CurveControlledBob headBob_ = new CurveControlledBob();
 
     [SerializeField]
+    private GameObject playerLight;
+
+    private bool playerLightOnOff = false;
+
+    [SerializeField]
     private Camera m_Camera;
 
     private GameObject m_Enemy;
@@ -429,6 +434,20 @@ public class Player : MonoBehaviour
             }
         }
 
+        if (Input.GetKeyDown(KeyCode.E))
+        {
+            playerLightOnOff = !playerLightOnOff;
+
+            if (playerLightOnOff)
+            {
+                playerLight.SetActive(true);
+            }
+            if (!playerLightOnOff)
+            {
+                playerLight.SetActive(false);
+            }
+        }
+
         if (enemyOutline)
         {
             m_Enemy.GetComponent<Outline>().enabled = true;
@@ -479,7 +498,7 @@ public class Player : MonoBehaviour
             if (flashFlg == 0)
             {
                 bloom.enabled.value = true;
-                bloom.intensity.value += Time.deltaTime * 100;
+                bloom.intensity.value += Time.deltaTime * 50;
                 if (bloom.intensity.value > 50)
                 {
                     bloom.intensity.value = 50;
@@ -488,7 +507,7 @@ public class Player : MonoBehaviour
             }
             if (flashFlg == 1)
             {
-                bloom.intensity.value -= Time.deltaTime * 100;
+                bloom.intensity.value -= Time.deltaTime * 50;
                 if (bloom.intensity.value < 0)
                 {
                     bloom.intensity.value = 0;
