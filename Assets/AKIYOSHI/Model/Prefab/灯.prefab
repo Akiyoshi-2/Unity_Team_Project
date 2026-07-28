@@ -11,9 +11,10 @@ GameObject:
   - component: {fileID: 7320886698741726183}
   - component: {fileID: 831295410911019282}
   - component: {fileID: 4281309384219569786}
+  - component: {fileID: 4756883527168595754}
   m_Layer: 0
   m_Name: Point Light
-  m_TagString: Untagged
+  m_TagString: Light
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -40,7 +41,7 @@ Light:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7928966090283701675}
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 12
   m_Type: 2
   m_Color: {r: 1, g: 0.5372549, b: 0, a: 1}
@@ -112,6 +113,29 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FlashingLight
   flashingLight: {fileID: 831295410911019282}
   flashingDistance: 40
+--- !u!136 &4756883527168595754
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7928966090283701675}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Radius: 0.3
+  m_Height: 2
+  m_Direction: 1
+  m_Center: {x: 0, y: -0.5, z: 0}
 --- !u!1001 &6551066970302435821
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -198,7 +222,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 009853e6d5d0090459a3b471118e5807, type: 3}
       propertyPath: m_Name
-      value: "\u706F 1"
+      value: "\u706F"
       objectReference: {fileID: 0}
     - target: {fileID: 1030160371140469851, guid: 009853e6d5d0090459a3b471118e5807, type: 3}
       propertyPath: m_CastShadows
