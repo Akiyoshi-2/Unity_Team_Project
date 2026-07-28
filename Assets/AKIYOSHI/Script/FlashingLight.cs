@@ -43,7 +43,7 @@ public class FlashingLight : MonoBehaviour
             if (nearestDistance == Mathf.Infinity)
             {
                 flashingLight.enabled = true;
-                flashingLight.intensity = 1f;
+                flashingLight.intensity = 2f;
                 return;
             }
 
@@ -55,7 +55,7 @@ public class FlashingLight : MonoBehaviour
                 if (timer >= nextBlinkTime)
                 {
                     flashingLight.enabled = !flashingLight.enabled;
-                    flashingLight.intensity = UnityEngine.Random.Range(0.5f, 1.5f);
+                    flashingLight.intensity = UnityEngine.Random.Range(0.5f, 2.5f);
 
                     timer = 0f;
                     SetNextBlink();
@@ -65,7 +65,7 @@ public class FlashingLight : MonoBehaviour
             {
                 // ìGÇ™âìÇ¢èÍçá
                 flashingLight.enabled = true;
-                flashingLight.intensity = 1f;
+                flashingLight.intensity = 2f;
                 timer = 0f;
             }
 
