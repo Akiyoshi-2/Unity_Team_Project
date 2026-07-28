@@ -27,7 +27,7 @@ Transform:
   m_GameObject: {fileID: 2102795352303400629}
   serializedVersion: 2
   m_LocalRotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071067}
-  m_LocalPosition: {x: -0.25, y: -3, z: 0}
+  m_LocalPosition: {x: -0.25, y: -1, z: 0}
   m_LocalScale: {x: 0.1, y: 0.1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -100,6 +100,7 @@ GameObject:
   m_Component:
   - component: {fileID: 3234524716962307197}
   - component: {fileID: 8034679069464159615}
+  - component: {fileID: 4105023674895253079}
   m_Layer: 0
   m_Name: "\u773CEnemy"
   m_TagString: Untagged
@@ -116,7 +117,7 @@ Transform:
   m_GameObject: {fileID: 2857683202295858887}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 2, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 0.5, y: 0.5, z: 0.5}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -149,7 +150,45 @@ CapsuleCollider:
   m_Radius: 1.4
   m_Height: 5
   m_Direction: 1
-  m_Center: {x: 0, y: -1.5, z: 0}
+  m_Center: {x: 0, y: 0.5, z: 0}
+--- !u!114 &4105023674895253079
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2857683202295858887}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 087dc6d2131e73649ad0d7ff7b1a90f4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Enemy
+  moveSpeed: 3
+  chaseSpeed: 5
+  rotationSpeed: 15
+  gridSize: 2
+  turnProbability: 0.4
+  minStraightSteps: 2
+  detectionRange: 10
+  killRange: 1.2
+  fovAngle: 90
+  searchWaitTime: 2
+  doorBreakTime: 2
+  doorBreakRadius: 1
+  doorCheckOffset: {x: 0, y: 1, z: 0.8}
+  playerTag: Player
+  wallLayer:
+    serializedVersion: 2
+    m_Bits: 8
+  wallByEnemyLayer:
+    serializedVersion: 2
+    m_Bits: 64
+  showVisitLevels: 1
+  volume: {fileID: 3960170807362732518, guid: 9253af7e5102d0641a25d989d76bf499, type: 3}
+  glitchDuration: 0.3
+  shakeIntensity: 0.5
+  stretchIntensity: 2
+  glitchCooldown: 5
 --- !u!1 &3801149113128612765
 GameObject:
   m_ObjectHideFlags: 0
@@ -177,7 +216,7 @@ Transform:
   m_GameObject: {fileID: 3801149113128612765}
   serializedVersion: 2
   m_LocalRotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071067}
-  m_LocalPosition: {x: 0.25, y: -3, z: 0}
+  m_LocalPosition: {x: 0.25, y: -1, z: 0}
   m_LocalScale: {x: 0.1, y: 0.1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -267,7 +306,7 @@ Transform:
   m_GameObject: {fileID: 5283452803262933774}
   serializedVersion: 2
   m_LocalRotation: {x: 0.5, y: -0.5, z: 0.5, w: 0.5}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 2, z: 0}
   m_LocalScale: {x: 0.9899999, y: 0.9899999, z: 0.9899999}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -357,7 +396,7 @@ Transform:
   m_GameObject: {fileID: 8782159492183410281}
   serializedVersion: 2
   m_LocalRotation: {x: -0.7071068, y: 0.7071068, z: -0, w: 0}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 2, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -447,7 +486,7 @@ Transform:
   m_GameObject: {fileID: 9058155092993370794}
   serializedVersion: 2
   m_LocalRotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071067}
-  m_LocalPosition: {x: 0, y: -0.5000002, z: 0}
+  m_LocalPosition: {x: 0, y: 1.5, z: 0}
   m_LocalScale: {x: 1.2, y: 1.2, z: 2.5000002}
   m_ConstrainProportionsScale: 0
   m_Children: []
