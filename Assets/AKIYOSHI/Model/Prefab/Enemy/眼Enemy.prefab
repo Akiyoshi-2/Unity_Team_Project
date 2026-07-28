@@ -71,5 +71,51 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 7450e45aaf563e6449527e9544492ca3, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4021066404094642295}
   m_SourcePrefab: {fileID: 100100000, guid: 7450e45aaf563e6449527e9544492ca3, type: 3}
+--- !u!1 &3086453114976526513 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 7450e45aaf563e6449527e9544492ca3, type: 3}
+  m_PrefabInstance: {fileID: 2743854428701318624}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &4021066404094642295
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3086453114976526513}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 087dc6d2131e73649ad0d7ff7b1a90f4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Enemy
+  moveSpeed: 3
+  chaseSpeed: 5
+  rotationSpeed: 15
+  gridSize: 2
+  turnProbability: 0.4
+  minStraightSteps: 2
+  detectionRange: 100
+  killRange: 1.2
+  fovAngle: 200
+  searchWaitTime: 2
+  doorBreakTime: 2
+  doorBreakRadius: 1
+  doorCheckOffset: {x: 0, y: 1, z: 0.8}
+  playerTag: Player
+  wallLayer:
+    serializedVersion: 2
+    m_Bits: 0
+  wallByEnemyLayer:
+    serializedVersion: 2
+    m_Bits: 0
+  showVisitLevels: 1
+  volume: {fileID: 0}
+  glitchDuration: 0.3
+  shakeIntensity: 0.5
+  stretchIntensity: 2
+  glitchCooldown: 5
