@@ -50,6 +50,8 @@ public class Player : MonoBehaviour
     private float m_ForwardSpeed = 4f;
     private float m_BackSpeed = 3f;
     private float m_SideSpeed = 3f;
+
+    [SerializeField]
     private float m_RotationSpeed = 2f;
 
     private int playerMoveFlg = 0;
