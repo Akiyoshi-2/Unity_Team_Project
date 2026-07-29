@@ -103,7 +103,7 @@ GameObject:
   - component: {fileID: 4105023674895253079}
   m_Layer: 0
   m_Name: "\u773CEnemy"
-  m_TagString: Untagged
+  m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -169,9 +169,9 @@ MonoBehaviour:
   gridSize: 2
   turnProbability: 0.4
   minStraightSteps: 2
-  detectionRange: 10
-  killRange: 1.2
-  fovAngle: 90
+  detectionRange: 100
+  killRange: 2
+  fovAngle: 200
   searchWaitTime: 2
   doorBreakTime: 2
   doorBreakRadius: 1
