@@ -7,7 +7,7 @@ public class Title : MonoBehaviour
     {
         if (Input.GetMouseButtonDown(0))
         {
-            SceneManager.LoadScene("");
+            SceneManager.LoadScene("SelectScene");
         }
     }
 
