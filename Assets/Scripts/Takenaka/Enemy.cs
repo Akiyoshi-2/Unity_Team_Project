@@ -64,6 +64,12 @@ public class Enemy : MonoBehaviour
     private float saveMoveSpeed = 0f;
     private float saveDetectionRange = 0f;
 
+    [Header("スタック対策設定")]
+    public int warpThreshold = 5;          // 連続してMAX地点を通った時の閾値
+    public int minWarpDistance = 3;        // ワープ先の最小距離（マス数）
+    public int maxWarpDistance = 10;       // ワープ先の最大距離（マス数）
+    private int consecutiveMaxLevelCount = 0; // 連続カウント用
+
     [Header("ノイズ演出設定")]
     [SerializeField] private float glitchDuration = 0.3f;
     [SerializeField] private float shakeIntensity = 0.5f;
@@ -96,7 +102,7 @@ public class Enemy : MonoBehaviour
     {
         if (player == null) return;
 
-        // 1. プレイヤーとの死亡判定 (最優先)
+        // 1. プレイヤーとの死亡判定
         if (Vector3.Distance(transform.position, player.position) < killRange)
         {
             Debug.Log("プレイヤーを捕らえました！");
@@ -104,20 +110,20 @@ public class Enemy : MonoBehaviour
             return;
         }
 
-        // 2. フラッシュライトによるスタン処理 (移動速度を0にする等の処理)
+        // 2. フラッシュライトスタン
         HandleFlashlightStun();
 
-        // 3. ドアの検知と破壊処理 ★ここで動きを止める★
-        // CheckAndBreakDoorがtrueを返している間は、下の移動ロジック(switch文)に進まない
-        if (CheckAndBreakDoor())
-        {
-            // ドアを破壊中、または目の前にドアがある間はここでUpdateを終了するため、
-            // 以下のパトロール、追跡、捜索の移動処理は一切実行されません。
-            return;
-        }
+        // 3. ドア破壊（ここがtrueなら以降の移動は行わない）
+        if (CheckAndBreakDoor()) return;
 
-        // 4. 通常のAIロジック（ドアがない場合のみ実行される）
         bool canSee = CanSeePlayer();
+
+        // ★ 修正箇所：変数名を連続カウント用に変更
+        // プレイヤーを発見した瞬間、または追跡中はスタック判定を行わないようにリセットする
+        if (canSee)
+        {
+            consecutiveMaxLevelCount = 0;
+        }
 
         switch (currentState)
         {
@@ -402,11 +408,88 @@ public class Enemy : MonoBehaviour
 
     void AddVisitLevel(Vector3 pos)
     {
+        int currentLevel = GetVisitLevel(pos);
+
+        // ★連続性チェック：今踏んだ場所がレベルMAX(3)かどうか
+        if (currentLevel >= MAX_VISIT_LEVEL)
+        {
+            consecutiveMaxLevelCount++;
+            Debug.Log($"<color=yellow>連続スタック警戒: {consecutiveMaxLevelCount}/{warpThreshold}</color>");
+
+            if (consecutiveMaxLevelCount >= warpThreshold)
+            {
+                WarpToRandomNearbyLevel0(); // ランダムワープ実行
+                consecutiveMaxLevelCount = 0;
+                return;
+            }
+        }
+        else
+        {
+            // ★3以外のレベル(0,1,2)を通った瞬間、カウントをリセット
+            if (consecutiveMaxLevelCount > 0)
+            {
+                Debug.Log("<color=white>スタックカウントをリセットしました（未踏エリアに到達）</color>");
+            }
+            consecutiveMaxLevelCount = 0;
+        }
+
+        // 通常のレベル加算処理
         if (visitLevelMap.ContainsKey(pos))
         {
             if (visitLevelMap[pos] < MAX_VISIT_LEVEL) visitLevelMap[pos]++;
         }
-        else visitLevelMap[pos] = 1;
+        else
+        {
+            visitLevelMap[pos] = 1;
+        }
+    }
+
+    void WarpToRandomNearbyLevel0()
+    {
+        Vector3 currentPos = GetGridPosition(transform.position);
+        List<Vector3> candidates = new List<Vector3>();
+
+        // 自分の周りの一定範囲（minWarpDistance ～ maxWarpDistance）を探索
+        for (int x = -maxWarpDistance; x <= maxWarpDistance; x++)
+        {
+            for (int z = -maxWarpDistance; z <= maxWarpDistance; z++)
+            {
+                int dist = Mathf.Abs(x) + Mathf.Abs(z); // マンハッタン距離
+
+                // 近すぎず、遠すぎない範囲内かチェック
+                if (dist < minWarpDistance || dist > maxWarpDistance) continue;
+
+                Vector3 checkPos = currentPos + new Vector3(x, 0, z) * gridSize;
+
+                // レベル0（まだ通っていない）かつ、壁がない場所を候補に入れる
+                if (!visitLevelMap.ContainsKey(checkPos))
+                {
+                    if (!Physics.CheckSphere(checkPos + Vector3.up, 0.5f, combinedMoveMask))
+                    {
+                        candidates.Add(checkPos);
+                    }
+                }
+            }
+        }
+
+        if (candidates.Count > 0)
+        {
+            // ★候補の中からランダムに一つ選ぶ
+            Vector3 warpTarget = candidates[UnityEngine.Random.Range(0, candidates.Count)];
+
+            transform.position = new Vector3(warpTarget.x, transform.position.y, warpTarget.z);
+            currentTargetCell = warpTarget;
+            SnapToGrid();
+
+            StartCoroutine(PlayHardGlitch());
+            Debug.Log($"<color=cyan>付近の未踏地点（全{candidates.Count}候補）からランダムにワープしました。</color>");
+        }
+        else
+        {
+            // 周辺にレベル0がない場合はマップ記憶をリセット
+            visitLevelMap.Clear();
+            Debug.Log("周辺に未踏地点がないため、訪問記録をリセットしました。");
+        }
     }
 
     int GetVisitLevel(Vector3 pos) => visitLevelMap.ContainsKey(pos) ? visitLevelMap[pos] : 0;
