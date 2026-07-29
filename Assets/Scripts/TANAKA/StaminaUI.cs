@@ -10,8 +10,12 @@ public class StaminaUI : MonoBehaviour
     [SerializeField]
     private Image greenGauge;
 
-    [SerializeField]
     private Player player;
+
+    private void Start()
+    {
+        player = GameObject.FindGameObjectWithTag("Player").GetComponent<Player>();
+    }
 
     void Update()
     {

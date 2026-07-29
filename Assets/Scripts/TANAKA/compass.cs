@@ -3,7 +3,7 @@ using UnityEngine;
 
 public class compass : MonoBehaviour
 {
-   public enum PositionType
+    public enum PositionType
     {
         Position,
         Object
@@ -18,14 +18,16 @@ public class compass : MonoBehaviour
     [SerializeField]
     private GameObject targetObject;
 
+    private GameObject player;
+
     private Vector3 targetPos;
 
-    private Transform m_Player;
+    private Transform transformPlayer;
 
     private void Start()
     {
-        Transform player = GameObject.FindGameObjectWithTag("Player").transform;
-        if (player != null) m_Player = player;
+        player = GameObject.FindGameObjectWithTag("Player");
+        if (player != null) transformPlayer = player.transform;
     }
 
     void Update()
@@ -39,13 +41,13 @@ public class compass : MonoBehaviour
             targetPos = targetObject.transform.position;
         }
 
-        Vector3 dir = targetPos - m_Player.position;
+        Vector3 dir = targetPos - transformPlayer.position;
 
         dir.y = 0;
 
         float targetAngle = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
 
-        float angle = targetAngle - m_Player.localEulerAngles.y;
+        float angle = targetAngle - transformPlayer.localEulerAngles.y;
 
         this.transform.localRotation = Quaternion.Euler(0, 0, -angle);
     }

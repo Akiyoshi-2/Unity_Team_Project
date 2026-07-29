@@ -104,6 +104,8 @@ public class Player : MonoBehaviour
     [SerializeField]
     private float flashLightTime = 10;
 
+    private bool getCompass = false;
+
     private int doorFlg = 0;
     private Transform door = null;
 
@@ -199,6 +201,10 @@ public class Player : MonoBehaviour
                     {
                         getItemID = 3;
                     }
+                    if (raycastHit.collider.name == "コンパス")
+                    {
+                        getItemID = 4;
+                    }
 
                     if (item1Stock == 0)
                     {
@@ -209,6 +215,17 @@ public class Player : MonoBehaviour
                     {
                         item2Stock = getItemID;
                         Debug.Log(GetItemName(item2Stock) + "を拾った"); //消す
+                    }
+
+                    if (item1Stock == 4)
+                    {
+                        getCompass = true;
+                        item1Stock = 0;
+                    }
+                    if (item2Stock == 4)
+                    {
+                        getCompass = true;
+                        item2Stock = 0;
                     }
                 }
                 else if (hit && raycastHit.collider.tag == "item" && item1Stock != 0 && item2Stock != 0)
@@ -705,9 +722,18 @@ public class Player : MonoBehaviour
         {
             return "フラッシュライト";
         }
+        if (ID == 4)
+        {
+            return "コンパス";
+        }
         else
         {
             return null;
         }
+    }
+
+    public bool GetCompassFlg()
+    {
+        return getCompass;
     }
 }
