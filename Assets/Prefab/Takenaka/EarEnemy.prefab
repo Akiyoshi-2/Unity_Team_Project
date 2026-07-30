@@ -138,6 +138,9 @@ MonoBehaviour:
   killRange: 2
   fovAngle: 360
   searchWaitTime: 2
+  doorBreakTime: 2
+  doorBreakRadius: 1
+  doorCheckOffset: {x: 0, y: 1, z: 0.8}
   playerTag: Player
   wallLayer:
     serializedVersion: 2
@@ -147,6 +150,13 @@ MonoBehaviour:
     m_Bits: 64
   showVisitLevels: 1
   volume: {fileID: 3960170807362732518, guid: 9253af7e5102d0641a25d989d76bf499, type: 3}
+  useLevelLoopWarp: 1
+  warpThreshold: 5
+  useTimeStuckWarp: 1
+  stuckWarpTime: 10
+  warpAreaLayer:
+    serializedVersion: 2
+    m_Bits: 128
   glitchDuration: 0.3
   shakeIntensity: 0.5
   stretchIntensity: 2
