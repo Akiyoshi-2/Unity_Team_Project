@@ -237,7 +237,7 @@ public class Player : MonoBehaviour
 
                 if (hit && raycastHit.collider.tag == "GoalItem")
                 {
-                    GetGoalItemFlg = true;
+                    GoalItemFlg = true;
                 }
 
                 if (hit && raycastHit.collider.tag == "HideBox")
