@@ -20,11 +20,13 @@ public class FadeManager : MonoBehaviour
         if (Instance == null)
         {
             Instance = this;
-            DontDestroyOnLoad(gameObject);
+
+            // Canvas‚²‚ÆŽc‚·
+            DontDestroyOnLoad(transform.root.gameObject);
         }
         else
         {
-            Destroy(gameObject);
+            Destroy(transform.root.gameObject);
         }
     }
 
