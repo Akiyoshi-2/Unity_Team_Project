@@ -191,7 +191,7 @@ public class Player : MonoBehaviour
                 {
                     raycastHit.collider.gameObject.SetActive(false);
 
-                    if (raycastHit.collider.name == "‚¨ŽD" || raycastHit.collider.name == "‚¨ŽD(Clone)")
+                    if (raycastHit.collider.name == "ŒäŽD" || raycastHit.collider.name == "ŒäŽD(Clone)")
                     {
                         getItemID = 1;
                     }
@@ -238,6 +238,7 @@ public class Player : MonoBehaviour
                 if (hit && raycastHit.collider.tag == "GoalItem")
                 {
                     GoalItemFlg = true;
+                    raycastHit.collider.gameObject.SetActive(false);
                 }
 
                 if (hit && raycastHit.collider.tag == "HideBox")
