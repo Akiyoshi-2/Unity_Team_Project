@@ -14,7 +14,7 @@ public class GetCompass : MonoBehaviour
 
     void Update()
     {
-        if (player.GetComponent<Player>().GetCompassFlg())
+        if (player.GetCompassFlg())
         {
             if (!Compass.gameObject.activeSelf)
             {

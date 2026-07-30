@@ -111,6 +111,8 @@ public class Player : MonoBehaviour
 
     private Transform Light = null;
 
+    private bool GoalItemFlg = false;
+
     private void Start()
     {
         volume.profile.TryGetSettings(out bloom);
@@ -231,6 +233,11 @@ public class Player : MonoBehaviour
                 else if (hit && raycastHit.collider.tag == "item" && item1Stock != 0 && item2Stock != 0)
                 {
                     Debug.Log("Ç±ÇÍà»è„ÉAÉCÉeÉÄÇèEÇ¶Ç‹ÇπÇÒ"); //è¡Ç∑
+                }
+
+                if (hit && raycastHit.collider.tag == "GoalItem")
+                {
+                    GetGoalItemFlg = true;
                 }
 
                 if (hit && raycastHit.collider.tag == "HideBox")
@@ -735,5 +742,10 @@ public class Player : MonoBehaviour
     public bool GetCompassFlg()
     {
         return getCompass;
+    }
+
+    public bool GetGoalItemFlg()
+    {
+        return GoalItemFlg;
     }
 }
