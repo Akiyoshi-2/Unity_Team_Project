@@ -6,7 +6,7 @@ public class SoundManager : MonoBehaviour
 {
     public enum SEType
     {
-
+        WALK,
     }
 
     public enum BGMType

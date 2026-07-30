@@ -113,11 +113,13 @@ public class Player : MonoBehaviour
 
     private bool GoalItemFlg = false;
 
+    private SoundManager sound;
+
     private void Start()
     {
         volume.profile.TryGetSettings(out bloom);
         headBob_.Setup(m_Camera, 1.0f);
-
+        sound = GameObject.FindGameObjectWithTag("SoundManager").GetComponent<SoundManager>();
         GameObject enemy = GameObject.FindGameObjectWithTag("Enemy");
         if (enemy != null) m_Enemy = enemy;
     }
@@ -160,7 +162,6 @@ public class Player : MonoBehaviour
 
             if (Input.GetKey(KeyCode.W))
             {
-
                 Vector3 headBob = headBob_.DoHeadBob(0.8f);
                 m_Camera.transform.localPosition = headBob;
 
@@ -203,10 +204,6 @@ public class Player : MonoBehaviour
                     {
                         getItemID = 3;
                     }
-                    if (raycastHit.collider.name == "コンパス" || raycastHit.collider.name == "コンパス(Clone)")
-                    {
-                        getItemID = 4;
-                    }
 
                     if (item1Stock == 0)
                     {
@@ -218,21 +215,17 @@ public class Player : MonoBehaviour
                         item2Stock = getItemID;
                         Debug.Log(GetItemName(item2Stock) + "を拾った"); //消す
                     }
-
-                    if (item1Stock == 4)
-                    {
-                        getCompass = true;
-                        item1Stock = 0;
-                    }
-                    if (item2Stock == 4)
-                    {
-                        getCompass = true;
-                        item2Stock = 0;
-                    }
                 }
                 else if (hit && raycastHit.collider.tag == "item" && item1Stock != 0 && item2Stock != 0)
                 {
                     Debug.Log("これ以上アイテムを拾えません"); //消す
+                }
+
+                if (hit && raycastHit.collider.tag == "item" && (raycastHit.collider.name == "コンパス" || raycastHit.collider.name == "コンパス(Clone)"))
+                {
+                    getCompass = true;
+                    raycastHit.collider.gameObject.SetActive(false);
+                    Debug.Log( "コンパスを拾った"); //消す
                 }
 
                 if (hit && raycastHit.collider.tag == "GoalItem")
@@ -720,7 +713,7 @@ public class Player : MonoBehaviour
     {
         if (ID == 1)
         {
-            return "お札";
+            return "御札";
         }
         if (ID == 2)
         {
@@ -729,10 +722,6 @@ public class Player : MonoBehaviour
         if (ID == 3)
         {
             return "フラッシュライト";
-        }
-        if (ID == 4)
-        {
-            return "コンパス";
         }
         else
         {
