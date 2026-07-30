@@ -189,19 +189,19 @@ public class Player : MonoBehaviour
                 {
                     raycastHit.collider.gameObject.SetActive(false);
 
-                    if (raycastHit.collider.name == "お札")
+                    if (raycastHit.collider.name == "お札" || raycastHit.collider.name == "お札(Clone)")
                     {
                         getItemID = 1;
                     }
-                    if (raycastHit.collider.name == "スタミナム")
+                    if (raycastHit.collider.name == "スタミナム" || raycastHit.collider.name == "スタミナム(Clone)")
                     {
                         getItemID = 2;
                     }
-                    if (raycastHit.collider.name == "フラッシュライト")
+                    if (raycastHit.collider.name == "フラッシュライト" || raycastHit.collider.name == "フラッシュライト(Clone)")
                     {
                         getItemID = 3;
                     }
-                    if (raycastHit.collider.name == "コンパス")
+                    if (raycastHit.collider.name == "コンパス" || raycastHit.collider.name == "コンパス(Clone)")
                     {
                         getItemID = 4;
                     }
