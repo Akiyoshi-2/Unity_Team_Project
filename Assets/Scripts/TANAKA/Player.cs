@@ -36,7 +36,7 @@ public class Player : MonoBehaviour
     [SerializeField]
     private Camera m_Camera;
 
-    private GameObject m_Enemy;
+    private Enemy[] m_Enemies;
 
     Vector3 camera_m;
     Vector3 player_m;
@@ -115,13 +115,25 @@ public class Player : MonoBehaviour
 
     private SoundManager sound;
 
+    private bool flashEnemyChecked = false;
+
     private void Start()
     {
         volume.profile.TryGetSettings(out bloom);
         headBob_.Setup(m_Camera, 1.0f);
-        sound = GameObject.FindGameObjectWithTag("SoundManager").GetComponent<SoundManager>();
-        GameObject enemy = GameObject.FindGameObjectWithTag("Enemy");
-        if (enemy != null) m_Enemy = enemy;
+
+        sound = GameObject.FindGameObjectWithTag("SoundManager")
+                         .GetComponent<SoundManager>();
+
+        // シーン内のEnemyをすべて取得
+        GameObject[] enemyObjects = GameObject.FindGameObjectsWithTag("Enemy");
+
+        m_Enemies = new Enemy[enemyObjects.Length];
+
+        for (int i = 0; i < enemyObjects.Length; i++)
+        {
+            m_Enemies[i] = enemyObjects[i].GetComponent<Enemy>();
+        }
     }
 
     private void Update()
@@ -468,20 +480,38 @@ public class Player : MonoBehaviour
             }
         }
 
+        if (m_Enemies != null)
+        {
+            foreach (Enemy enemy in m_Enemies)
+            {
+                if (enemy == null)
+                    continue;
+
+                float distance = Vector3.Distance(
+                    transform.position,
+                    enemy.transform.position
+                );
+
+                if (distance <= 20.0f)
+                {
+                    enemy.flashLightHit = true;
+                }
+            }
+        }
+
         if (enemyOutline)
         {
-            m_Enemy.GetComponent<Outline>().enabled = true;
             outlineTimer += Time.deltaTime;
 
             if (outlineTimer > ohudaTime)
             {
                 enemyOutline = false;
+                outlineTimer = 0f;
             }
         }
         else
         {
-            m_Enemy.GetComponent<Outline>().enabled = false;
-            outlineTimer = 0;
+            outlineTimer = 0f;
         }
 
         if (staminam)
@@ -509,25 +539,49 @@ public class Player : MonoBehaviour
         if (flashLight)
         {
             flashLightTimer += Time.deltaTime;
-            float distance = Vector3.Distance(this.transform.position, m_Enemy.transform.position);
-            if (distance <= 20.0f)
+
+            // フラッシュライトを使った最初の1回だけEnemyをチェック
+            if (!flashEnemyChecked)
             {
-                m_Enemy.GetComponent<Enemy>().flashLightHit = true;
+                if (m_Enemies != null)
+                {
+                    foreach (Enemy enemy in m_Enemies)
+                    {
+                        if (enemy == null)
+                            continue;
+
+                        Vector3 diff = transform.position - enemy.transform.position;
+                        float distanceSqr = diff.sqrMagnitude;
+
+                        // 20m以内のEnemyだけ反応
+                        if (distanceSqr <= 20.0f * 20.0f)
+                        {
+                            enemy.flashLightHit = true;
+                        }
+                    }
+                }
+
+                flashEnemyChecked = true;
             }
 
+            // Bloom開始
             if (flashFlg == 0)
             {
                 bloom.enabled.value = true;
                 bloom.intensity.value += Time.deltaTime * 50;
+
                 if (bloom.intensity.value > 50)
                 {
                     bloom.intensity.value = 50;
                     flashFlg = 1;
                 }
             }
+
+            // Bloom終了
             if (flashFlg == 1)
             {
                 bloom.intensity.value -= Time.deltaTime * 50;
+
                 if (bloom.intensity.value < 0)
                 {
                     bloom.intensity.value = 0;
@@ -535,14 +589,27 @@ public class Player : MonoBehaviour
                     flashFlg = 2;
                 }
             }
-            if (flashFlg == 2 && !m_Enemy.GetComponent<Enemy>().flashLightHit)
+
+            // 演出終了
+            if (flashFlg == 2)
             {
                 flashLight = false;
             }
 
+            // フラッシュライトの時間終了
             if (flashLightTimer > flashLightTime)
             {
-                m_Enemy.GetComponent<Enemy>().flashLightHit = false;
+                if (m_Enemies != null)
+                {
+                    foreach (Enemy enemy in m_Enemies)
+                    {
+                        if (enemy == null)
+                            continue;
+
+                        enemy.flashLightHit = false;
+                    }
+                }
+
                 flashLight = false;
             }
         }
@@ -550,6 +617,9 @@ public class Player : MonoBehaviour
         {
             flashFlg = 0;
             flashLightTimer = 0;
+
+            // 次回使用時にもう一度Enemyをチェック
+            flashEnemyChecked = false;
         }
 
         if ((staminaOut || tagChange) && !staminam)
