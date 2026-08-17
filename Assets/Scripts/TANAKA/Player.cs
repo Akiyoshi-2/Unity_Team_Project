@@ -246,21 +246,29 @@ public class Player : MonoBehaviour
                     raycastHit.collider.gameObject.SetActive(false);
                 }
 
-                if (hit && raycastHit.collider.tag == "HideBox")
+                if (hit && raycastHit.collider.CompareTag("HideBox"))
                 {
-                    posSave = this.transform.position;
-                    this.transform.localScale = Vector3.zero;
-                    this.transform.position = raycastHit.transform.position;
-                    this.transform.localEulerAngles =
-                        new Vector3
-                        (raycastHit.transform.localEulerAngles.x,
-                        raycastHit.transform.localEulerAngles.y + 90,
-                        raycastHit.transform.localEulerAngles.z)
-                        ;
+                    posSave = transform.position;
+
+                    transform.localScale = Vector3.zero;
+
+                    // HideBoxÇÃíÜêSÇÊÇËYï˚å¸Ç…1mè„Ç÷
+                    transform.position = raycastHit.transform.position + Vector3.up * 0.5f;
+
+                    transform.localEulerAngles =
+                        new Vector3(
+                            raycastHit.transform.localEulerAngles.x,
+                            raycastHit.transform.localEulerAngles.y + 90,
+                            raycastHit.transform.localEulerAngles.z
+                        );
 
                     dirStop = raycastHit.transform.localEulerAngles.y + 90;
+
                     rb.useGravity = false;
                     tagChange = true;
+
+                    // HideBoxÇ…ì¸Ç¡ÇΩÇ∆Ç´ÅAåªç›ÇÃÉJÉÅÉâÇÃå¸Ç´Ç180ÅãîΩì]
+m_Camera.transform.localEulerAngles += new Vector3(0f, 180f, 0f);
                 }
 
                 if (hit && raycastHit.collider.tag == "Door" && doorFlg == 0)
