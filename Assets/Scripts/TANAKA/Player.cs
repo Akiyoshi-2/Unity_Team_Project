@@ -162,6 +162,7 @@ public class Player : MonoBehaviour
 
             if (Input.GetKey(KeyCode.W))
             {
+                sound.PlaySE(SoundManager.SEType.WALK);
                 Vector3 headBob = headBob_.DoHeadBob(0.8f);
                 m_Camera.transform.localPosition = headBob;
 
