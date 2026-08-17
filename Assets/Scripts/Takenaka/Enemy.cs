@@ -15,6 +15,11 @@ public class Enemy : MonoBehaviour
     public float turnProbability = 0.4f;
     public int minStraightSteps = 2;
 
+    [Header("浮遊設定")]
+    public float floatAmplitude = 0.25f;
+    public float floatSpeed = 3.0f;
+    private float startY;
+
     [Header("検知設定")]
     public float detectionRange = 10.0f;
     public float killRange = 1.2f;
@@ -29,6 +34,7 @@ public class Enemy : MonoBehaviour
 
     [Header("レイヤー・タグ設定")]
     public string playerTag = "Player";
+    public string warpPointTag = "Warp Point";
     public LayerMask wallLayer;
     public LayerMask wallByEnemyLayer;
 
@@ -40,7 +46,7 @@ public class Enemy : MonoBehaviour
 
     private Vector3 targetDirection;
     private Transform player;
-    private Vector3 currentTargetCell;
+    private Vector3 currentTargetCell; // これが古い場所を指しているのが原因
     private Vector3 lastSeenCell;
     private int straightStepCount = 0;
     private float searchTimer = 0f;
@@ -64,20 +70,14 @@ public class Enemy : MonoBehaviour
     private float saveMoveSpeed = 0f;
     private float saveDetectionRange = 0f;
 
-    [Header("スタック対策設定")]
-    [Tooltip("同じ場所（レベル3）をループした時にワープするか")]
-    public bool useLevelLoopWarp = true;     // 追加：インスペクターでOFFにできる
+    [Header("ワープ発動条件")]
+    public bool useLevelLoopWarp = true;
     public int warpThreshold = 5;
-
-    [Tooltip("一定時間移動がない時にワープするか")]
-    public bool useTimeStuckWarp = true;    // 追加：インスペクターでOFFにできる
+    public bool useTimeStuckWarp = true;
     public float stuckWarpTime = 10.0f;
 
     private int consecutiveMaxLevelCount = 0;
     private float stuckTimer = 0f;
-
-    [Header("ワープエリア設定")]
-    public LayerMask warpAreaLayer;
 
     [Header("ノイズ演出設定")]
     [SerializeField] private float glitchDuration = 0.3f;
@@ -88,14 +88,18 @@ public class Enemy : MonoBehaviour
 
     void Start()
     {
-        volume.profile.TryGetSettings(out grain);
-        volume.profile.TryGetSettings(out vignette);
-        volume.profile.TryGetSettings(out chromaticAberration);
+        if (volume != null)
+        {
+            volume.profile.TryGetSettings(out grain);
+            volume.profile.TryGetSettings(out vignette);
+            volume.profile.TryGetSettings(out chromaticAberration);
+        }
 
         combinedMoveMask = wallLayer | wallByEnemyLayer;
         if (wallLayer == 0) wallLayer = LayerMask.GetMask("Wall");
 
         SnapToGrid();
+        startY = transform.position.y;
         currentTargetCell = GetGridPosition(transform.position);
         targetDirection = transform.forward;
 
@@ -111,10 +115,8 @@ public class Enemy : MonoBehaviour
     {
         if (player == null) return;
 
-        // 1. プレイヤーとの死亡判定
         if (Vector3.Distance(transform.position, player.position) < killRange)
         {
-            Debug.Log("プレイヤーを捕らえました！");
             Destroy(player.gameObject);
             return;
         }
@@ -129,22 +131,15 @@ public class Enemy : MonoBehaviour
             consecutiveMaxLevelCount = 0;
             stuckTimer = 0f;
         }
-        else
+        else if (useTimeStuckWarp)
         {
-            // ★時間経過によるスタック判定（有効な場合のみ）
-            if (useTimeStuckWarp)
+            stuckTimer += Time.deltaTime;
+            if (stuckTimer >= stuckWarpTime)
             {
-                stuckTimer += Time.deltaTime;
-                if (stuckTimer >= stuckWarpTime)
-                {
-                    Debug.Log("<color=red>一定時間レベル更新がないためワープします。</color>");
-                    WarpToLowPriorityInArea();
-                    stuckTimer = 0f;
-                }
+                WarpToNearestTaggedPoint();
             }
         }
 
-        // --- 以下、Stateに応じたロジック ---
         switch (currentState)
         {
             case State.Patrol:
@@ -162,150 +157,166 @@ public class Enemy : MonoBehaviour
         }
     }
 
-    // レベルを更新する際に呼ばれるメソッド
-    void AddVisitLevel(Vector3 pos)
+    // --- ワープ処理（最重要：全ての目的地の強制書き換え） ---
+    void WarpToNearestTaggedPoint()
     {
-        stuckTimer = 0f; // マスが動いたのでタイマーは常にリセット
+        GameObject[] points = GameObject.FindGameObjectsWithTag(warpPointTag);
+        if (points == null || points.Length == 0) return;
 
-        int currentLevel = GetVisitLevel(pos);
-
-        // ★レベルループによるワープ判定（有効な場合のみ）
-        if (useLevelLoopWarp && currentLevel >= MAX_VISIT_LEVEL)
+        GameObject nearestPoint = null;
+        float minDistance = float.MaxValue;
+        foreach (GameObject p in points)
         {
-            consecutiveMaxLevelCount++;
-            if (consecutiveMaxLevelCount >= warpThreshold)
-            {
-                Debug.Log("<color=yellow>ループ検知によりワープします。</color>");
-                WarpToLowPriorityInArea();
-                consecutiveMaxLevelCount = 0;
-                return;
-            }
+            float dist = Vector3.Distance(transform.position, p.transform.position);
+            if (dist < minDistance) { minDistance = dist; nearestPoint = p; }
         }
-        else
+
+        if (nearestPoint != null)
         {
+            // 1. 位置のワープ
+            transform.position = new Vector3(nearestPoint.transform.position.x, nearestPoint.transform.position.y, nearestPoint.transform.position.z);
+            startY = transform.position.y;
+            SnapToGrid();
+
+            // 2. 目的座標（currentTargetCell）を現在地に強制リセット
+            // これをしないと「ワープ前の古い場所」に向かって突き進んでしまいます
+            currentTargetCell = GetGridPosition(transform.position);
+
+            // 3. 全ての状態を忘れる（リセット）
+            currentState = State.Patrol;
+            lastSeenCell = new Vector3(9999f, 9999f, 9999f); // プレイヤーの記憶を遠くに飛ばす
+            searchTimer = 0f;
+            stuckTimer = 0f;
             consecutiveMaxLevelCount = 0;
-        }
-
-        if (visitLevelMap.ContainsKey(pos))
-        {
-            if (visitLevelMap[pos] < MAX_VISIT_LEVEL) visitLevelMap[pos]++;
-        }
-        else visitLevelMap[pos] = 1;
-    }
-
-    // --- ワープ処理 ---
-    WarpArea GetCurrentWarpArea()
-    {
-        Collider[] colliders = Physics.OverlapSphere(transform.position, 0.5f, warpAreaLayer);
-        foreach (var col in colliders)
-        {
-            WarpArea area = col.GetComponent<WarpArea>();
-            if (area == null) area = col.GetComponentInParent<WarpArea>();
-            if (area != null) return area;
-        }
-        return null;
-    }
-
-    void WarpToLowPriorityInArea()
-    {
-        WarpArea currentArea = GetCurrentWarpArea();
-        if (currentArea == null || currentArea.areaCollider == null)
-        {
-            Debug.LogWarning("WarpAreaが見つかりません。記憶をリセットします。");
             visitLevelMap.Clear();
+
+            // 4. その場で新しい向きを決める
+            ChooseNewRandomDirection();
+
+            StartCoroutine(PlayHardGlitch());
+            Debug.Log("<color=cyan>ワープ完了。全ての目的地をリセットしました。</color>");
+        }
+    }
+
+    void ChooseNewRandomDirection()
+    {
+        Vector3 currentPos = GetGridPosition(transform.position);
+        Vector3[] dirs = { Vector3.forward, Vector3.back, Vector3.right, Vector3.left };
+        List<Vector3> validDirections = new List<Vector3>();
+
+        foreach (Vector3 d in dirs)
+        {
+            if (!Physics.CheckSphere(currentPos + d * gridSize + Vector3.up, 0.5f, combinedMoveMask))
+                validDirections.Add(d);
+        }
+
+        if (validDirections.Count > 0)
+            targetDirection = validDirections[UnityEngine.Random.Range(0, validDirections.Count)];
+        else
+            targetDirection = transform.forward;
+
+        // 次の目標地点も再計算
+        currentTargetCell = currentPos + targetDirection * gridSize;
+    }
+
+    // --- 移動処理（安全装置付き） ---
+    void MoveTowardsTargetSafe()
+    {
+        // 安全装置：もし目的地が1グリッドより遠すぎる場合（ワープの残骸など）、その場でリセットする
+        if (Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), new Vector3(currentTargetCell.x, 0, currentTargetCell.z)) > gridSize * 1.5f)
+        {
+            currentTargetCell = GetGridPosition(transform.position);
             return;
         }
 
-        List<Vector3> candidates = new List<Vector3>();
-        Bounds bounds = currentArea.areaCollider.bounds;
+        float speed = (currentState == State.Chase) ? chaseSpeed : moveSpeed;
+        float rotSpeed = (currentState == State.Chase) ? rotationSpeed * 1.5f : rotationSpeed;
 
-        for (float x = bounds.min.x; x <= bounds.max.x; x += gridSize)
+        if (targetDirection != Vector3.zero)
         {
-            for (float z = bounds.min.z; z <= bounds.max.z; z += gridSize)
-            {
-                Vector3 checkPos = GetGridPosition(new Vector3(x, 0, z));
-                if (currentArea.areaCollider.ClosestPoint(checkPos) == checkPos)
-                {
-                    if (!visitLevelMap.ContainsKey(checkPos)) // 未踏地点(Level 0)を探す
-                    {
-                        if (!Physics.CheckSphere(checkPos + Vector3.up, 0.5f, combinedMoveMask))
-                        {
-                            candidates.Add(checkPos);
-                        }
-                    }
-                }
-            }
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(targetDirection), rotSpeed * 100f * Time.deltaTime);
         }
 
-        if (candidates.Count > 0)
+        Vector3 horizontalTarget = new Vector3(currentTargetCell.x, transform.position.y, currentTargetCell.z);
+        Vector3 nextPos = Vector3.MoveTowards(transform.position, horizontalTarget, speed * Time.deltaTime);
+
+        float floatingY = startY + Mathf.Sin(Time.time * floatSpeed) * floatAmplitude;
+        nextPos.y = floatingY;
+
+        if (!Physics.SphereCast(transform.position + Vector3.up, 0.4f, (nextPos - transform.position).normalized, out _, Vector3.Distance(transform.position, nextPos), combinedMoveMask))
         {
-            Vector3 warpTarget = candidates[UnityEngine.Random.Range(0, candidates.Count)];
-            transform.position = new Vector3(warpTarget.x, transform.position.y, warpTarget.z);
-            currentTargetCell = warpTarget;
-            SnapToGrid();
-
-            // ワープ後は全てのカウントをリセット
-            consecutiveMaxLevelCount = 0;
-            stuckTimer = 0f;
-
-            StartCoroutine(PlayHardGlitch());
-            Debug.Log($"<color=cyan>エリア '{currentArea.name}' 内へワープ完了。</color>");
+            transform.position = nextPos;
         }
         else
         {
-            ClearMemoryInBounds(bounds);
-            Debug.Log("未踏地点がないため、エリア内の記憶を消去しました。");
+            SnapToGrid();
+            Vector3 p = transform.position; p.y = floatingY; transform.position = p;
         }
     }
 
-    void ClearMemoryInBounds(Bounds bounds)
+    // --- その他ロジック ---
+
+    void PatrolLogic()
     {
-        List<Vector3> keysToRemove = new List<Vector3>();
-        foreach (var pos in visitLevelMap.Keys)
+        float d = Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), new Vector3(currentTargetCell.x, 0, currentTargetCell.z));
+        if (d < 0.1f)
         {
-            if (bounds.Contains(pos)) keysToRemove.Add(pos);
+            Vector3 p = GetGridPosition(transform.position);
+            AddVisitLevel(p);
+            UpdateNextPatrolTarget(p);
         }
-        foreach (var key in keysToRemove) visitLevelMap.Remove(key);
+        MoveTowardsTargetSafe();
     }
 
-    // --- (以下、ドア破壊、移動、Gizmosなどの既存コード) ---
-    bool CheckAndBreakDoor()
+    void ChaseLogic()
     {
-        Vector3 checkCenter = transform.position + transform.right * doorCheckOffset.x + transform.up * doorCheckOffset.y + transform.forward * doorCheckOffset.z;
-        Collider[] hitColliders = Physics.OverlapSphere(checkCenter, doorBreakRadius);
-        bool foundDoor = false;
-        List<GameObject> doorsInRange = new List<GameObject>();
-        foreach (var hit in hitColliders) { if (hit.CompareTag("Door") || hit.CompareTag("wDoor")) { foundDoor = true; doorsInRange.Add(hit.gameObject); } }
-        if (foundDoor) { doorBreakTimer += Time.deltaTime; if (doorBreakTimer >= doorBreakTime) { foreach (GameObject d in doorsInRange) if (d != null) Destroy(d); doorBreakTimer = 0f; } return true; }
-        doorBreakTimer = 0f; return false;
-    }
+        if (vignette != null) vignette.enabled.value = true;
+        if (chromaticAberration != null) chromaticAberration.enabled.value = true;
 
-    void HandleFlashlightStun()
-    {
-        if (flashLightHit) { if (!stunFlg) { saveChaseSpeed = chaseSpeed; saveMoveSpeed = moveSpeed; saveDetectionRange = detectionRange; stunFlg = true; } chaseSpeed = 0; moveSpeed = 0; detectionRange = 0; }
-        else if (!flashLightHit && stunFlg) { chaseSpeed = saveChaseSpeed; moveSpeed = saveMoveSpeed; detectionRange = saveDetectionRange; stunFlg = false; }
-    }
-
-    bool CanSeePlayer()
-    {
-        float dist = Vector3.Distance(transform.position, player.position);
-        if (dist > detectionRange) return false;
-        Vector3 dirToPlayer = (player.position - transform.position).normalized;
-        if (Vector3.Angle(transform.forward, dirToPlayer) < fovAngle * 0.5f)
+        float distToTarget = Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), new Vector3(currentTargetCell.x, 0, currentTargetCell.z));
+        if (distToTarget < 0.1f)
         {
-            if (!Physics.Linecast(transform.position + Vector3.up, player.position + Vector3.up, wallLayer))
+            Vector3 p = GetGridPosition(transform.position);
+            AddVisitLevel(p);
+            targetDirection = GetBestDirectionTowards(p, GetGridPosition(player.position));
+            currentTargetCell = p + targetDirection * gridSize;
+        }
+        MoveTowardsTargetSafe();
+    }
+
+    void SearchLogic()
+    {
+        if (vignette != null) vignette.enabled.value = false;
+        if (chromaticAberration != null) chromaticAberration.enabled.value = false;
+
+        float dTarget = Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), new Vector3(currentTargetCell.x, 0, currentTargetCell.z));
+
+        // lastSeenCellがInfinity（ワープ後）なら検索を終了する
+        if (lastSeenCell.x > 5000f)
+        {
+            currentState = State.Patrol;
+            return;
+        }
+
+        float dLast = Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), new Vector3(lastSeenCell.x, 0, lastSeenCell.z));
+        if (dLast > 0.1f)
+        {
+            if (dTarget < 0.1f)
             {
-                lastSeenCell = GetGridPosition(player.position);
-                return true;
+                Vector3 p = GetGridPosition(transform.position);
+                AddVisitLevel(p);
+                targetDirection = GetBestDirectionTowards(p, lastSeenCell);
+                currentTargetCell = p + targetDirection * gridSize;
             }
+            MoveTowardsTargetSafe();
+            searchTimer = 0f;
         }
-        return false;
+        else
+        {
+            searchTimer += Time.deltaTime;
+            if (searchTimer >= searchWaitTime) currentState = State.Patrol;
+        }
     }
-
-    void StartChase() { if (currentState != State.Chase) { currentState = State.Chase; visitLevelMap.Clear(); if (Time.time >= lastGlitchTime + glitchCooldown) { StartCoroutine(PlayHardGlitch()); lastGlitchTime = Time.time; } } }
-    void PatrolLogic() { float d = Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), currentTargetCell); if (d < 0.05f) { Vector3 p = GetGridPosition(transform.position); AddVisitLevel(p); UpdateNextPatrolTarget(p); } MoveTowardsTargetSafe(); }
-    void ChaseLogic() { vignette.enabled.value = true; chromaticAberration.enabled.value = true; float d = Vector3.Distance(player.position, transform.position); vignette.intensity.value = (1f - Mathf.InverseLerp(0f, detectionRange, d)) * 0.4f; if (Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), currentTargetCell) < 0.05f) { Vector3 p = GetGridPosition(transform.position); AddVisitLevel(p); targetDirection = GetBestDirectionTowards(p, GetGridPosition(player.position)); currentTargetCell = p + targetDirection * gridSize; } MoveTowardsTargetSafe(); }
-    void SearchLogic() { vignette.enabled.value = false; chromaticAberration.enabled.value = false; float dTarget = Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), currentTargetCell); float dLast = Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), lastSeenCell); if (dLast > 0.1f) { if (dTarget < 0.05f) { Vector3 p = GetGridPosition(transform.position); AddVisitLevel(p); targetDirection = GetBestDirectionTowards(p, lastSeenCell); currentTargetCell = p + targetDirection * gridSize; } MoveTowardsTargetSafe(); searchTimer = 0f; } else { searchTimer += Time.deltaTime; if (searchTimer >= searchWaitTime) currentState = State.Patrol; } }
 
     void UpdateNextPatrolTarget(Vector3 currentPos)
     {
@@ -332,16 +343,53 @@ public class Enemy : MonoBehaviour
         return bestDir;
     }
 
-    void MoveTowardsTargetSafe()
+    void AddVisitLevel(Vector3 pos)
     {
-        float speed = (currentState == State.Chase) ? chaseSpeed : moveSpeed;
-        float rotSpeed = (currentState == State.Chase) ? rotationSpeed * 1.5f : rotationSpeed;
-        if (targetDirection != Vector3.zero) transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(targetDirection), rotSpeed * 100f * Time.deltaTime);
-        Vector3 next = Vector3.MoveTowards(transform.position, new Vector3(currentTargetCell.x, transform.position.y, currentTargetCell.z), speed * Time.deltaTime);
-        if (!Physics.SphereCast(transform.position + Vector3.up, 0.4f, (next - transform.position).normalized, out _, Vector3.Distance(transform.position, next), combinedMoveMask)) transform.position = next;
-        else SnapToGrid();
+        stuckTimer = 0f;
+        int currentLevel = GetVisitLevel(pos);
+        if (useLevelLoopWarp && currentLevel >= MAX_VISIT_LEVEL)
+        {
+            consecutiveMaxLevelCount++;
+            if (consecutiveMaxLevelCount >= warpThreshold) { WarpToNearestTaggedPoint(); return; }
+        }
+        else consecutiveMaxLevelCount = 0;
+        if (visitLevelMap.ContainsKey(pos)) { if (visitLevelMap[pos] < MAX_VISIT_LEVEL) visitLevelMap[pos]++; }
+        else visitLevelMap[pos] = 1;
     }
 
+    bool CheckAndBreakDoor()
+    {
+        Vector3 checkCenter = transform.position + transform.right * doorCheckOffset.x + transform.up * doorCheckOffset.y + transform.forward * doorCheckOffset.z;
+        Collider[] hitColliders = Physics.OverlapSphere(checkCenter, doorBreakRadius);
+        bool foundDoor = false;
+        foreach (var hit in hitColliders) { if (hit.CompareTag("Door") || hit.CompareTag("wDoor")) { foundDoor = true; break; } }
+        if (foundDoor) { doorBreakTimer += Time.deltaTime; if (doorBreakTimer >= doorBreakTime) { foreach (var hit in hitColliders) if (hit.CompareTag("Door") || hit.CompareTag("wDoor")) Destroy(hit.gameObject); doorBreakTimer = 0f; } return true; }
+        doorBreakTimer = 0f; return false;
+    }
+
+    void HandleFlashlightStun()
+    {
+        if (flashLightHit) { if (!stunFlg) { saveChaseSpeed = chaseSpeed; saveMoveSpeed = moveSpeed; saveDetectionRange = detectionRange; stunFlg = true; } chaseSpeed = 0; moveSpeed = 0; detectionRange = 0; }
+        else if (!flashLightHit && stunFlg) { chaseSpeed = saveChaseSpeed; moveSpeed = saveMoveSpeed; detectionRange = saveDetectionRange; stunFlg = false; }
+    }
+
+    bool CanSeePlayer()
+    {
+        float dist = Vector3.Distance(transform.position, player.position);
+        if (dist > detectionRange) return false;
+        Vector3 dirToPlayer = (player.position - transform.position).normalized;
+        if (Vector3.Angle(transform.forward, dirToPlayer) < fovAngle * 0.5f)
+        {
+            if (!Physics.Linecast(transform.position + Vector3.up, player.position + Vector3.up, wallLayer))
+            {
+                lastSeenCell = GetGridPosition(player.position);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void StartChase() { if (currentState != State.Chase) { currentState = State.Chase; visitLevelMap.Clear(); if (Time.time >= lastGlitchTime + glitchCooldown) { StartCoroutine(PlayHardGlitch()); lastGlitchTime = Time.time; } } }
     int GetVisitLevel(Vector3 pos) => visitLevelMap.ContainsKey(pos) ? visitLevelMap[pos] : 0;
     private void OnCollisionEnter(Collision collision) { if (collision.gameObject.CompareTag(playerTag)) Destroy(collision.gameObject); }
     Vector3 RoundVector(Vector3 v) => new Vector3(Mathf.Round(v.x), 0, Mathf.Round(v.z)).normalized;
@@ -368,7 +416,6 @@ public class Enemy : MonoBehaviour
         Gizmos.DrawRay(eyePos, left * detectionRange); Gizmos.DrawRay(eyePos, right * detectionRange);
         Vector3 checkCenter = transform.position + transform.right * doorCheckOffset.x + transform.up * doorCheckOffset.y + transform.forward * doorCheckOffset.z;
         Gizmos.color = (doorBreakTimer > 0) ? Color.red : Color.green; Gizmos.DrawWireSphere(checkCenter, doorBreakRadius);
-        if (doorBreakTimer > 0) { Gizmos.color = new Color(1, 0, 0, 0.3f); Gizmos.DrawSphere(checkCenter, doorBreakRadius * (doorBreakTimer / doorBreakTime)); }
     }
 
     void DrawGizmoCircle(Vector3 center, float radius) { int segments = 20; float step = 360f / segments; Vector3 prev = center + new Vector3(radius, 0, 0); for (int i = 1; i <= segments; i++) { float a = i * step * Mathf.Deg2Rad; Vector3 next = center + new Vector3(Mathf.Cos(a) * radius, 0, Mathf.Sin(a) * radius); Gizmos.DrawLine(prev, next); prev = next; } }
@@ -383,8 +430,8 @@ public class Enemy : MonoBehaviour
             cam.transform.localPosition = originalPos + UnityEngine.Random.insideUnitSphere * shakeIntensity;
             cam.aspect = originalAspect * UnityEngine.Random.Range(1f / stretchIntensity, stretchIntensity);
             cam.fieldOfView = originalFOV + UnityEngine.Random.Range(-15f, 15f);
-            grain.enabled.value = true; elapsed += Time.unscaledDeltaTime; yield return null;
+            if (grain != null) grain.enabled.value = true; elapsed += Time.unscaledDeltaTime; yield return null;
         }
-        cam.ResetAspect(); grain.enabled.value = false; cam.fieldOfView = originalFOV; cam.transform.localPosition = originalPos;
+        cam.ResetAspect(); if (grain != null) grain.enabled.value = false; cam.fieldOfView = originalFOV; cam.transform.localPosition = originalPos;
     }
 }
