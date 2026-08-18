@@ -222,11 +222,13 @@ public class Player : MonoBehaviour
                     {
                         item1Stock = getItemID;
                         Debug.Log(GetItemName(item1Stock) + "ÇèEÇ¡ÇΩ"); //è¡Ç∑
+                        getItemID = 0;
                     }
                     else if (item2Stock == 0)
                     {
                         item2Stock = getItemID;
                         Debug.Log(GetItemName(item2Stock) + "ÇèEÇ¡ÇΩ"); //è¡Ç∑
+                        getItemID = 0;
                     }
                 }
                 else if (hit && raycastHit.collider.tag == "item" && item1Stock != 0 && item2Stock != 0)
@@ -815,5 +817,14 @@ public class Player : MonoBehaviour
     public bool GetGoalItemFlg()
     {
         return GoalItemFlg;
+    }
+
+    public int GetStockItem1()
+    {
+        return item1Stock;
+    }
+    public int GetStockItem2()
+    {
+        return item2Stock;
     }
 }
