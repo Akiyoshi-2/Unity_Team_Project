@@ -78,6 +78,12 @@ public class Player : MonoBehaviour
     private int item2Stock = 0;
     private int item3Stock = 0;
 
+    private int getItemUseCount = 0;
+
+    private int item1UseCount = 0;
+    private int item2UseCount = 0;
+    private int item3UseCount = 0;
+
     private float useItemTimer;
 
     private bool enemyOutline = false;
@@ -102,6 +108,9 @@ public class Player : MonoBehaviour
     private float ohudaTime = 10;
     [SerializeField]
     private float flashLightTime = 10;
+
+    [SerializeField]
+    private GameObject flashStone;
 
     // アイテム使ったらtrue
     [NonSerialized]
@@ -179,7 +188,7 @@ public class Player : MonoBehaviour
 
             if (Input.GetKey(KeyCode.W))
             {
-                sound.PlaySE(SoundManager.SEType.WALK);
+                //sound.PlaySE(SoundManager.SEType.WALK);
                 Vector3 headBob = headBob_.DoHeadBob(0.8f);
                 m_Camera.transform.localPosition = headBob;
 
@@ -206,44 +215,59 @@ public class Player : MonoBehaviour
                 RaycastHit raycastHit;
 
                 bool hit = Physics.Raycast(m_Camera.transform.position, m_Camera.transform.forward, out raycastHit, 2.5f);
-                if (hit && raycastHit.collider.tag == "item" && (item1Stock == 0 || item2Stock == 0))
+                if (hit && raycastHit.collider.tag == "item" && (item1Stock == 0 || item2Stock == 0 || item3Stock == 0))
                 {
                     raycastHit.collider.gameObject.SetActive(false);
 
                     if (raycastHit.collider.name == "御札" || raycastHit.collider.name == "御札(Clone)")
                     {
                         getItemID = 1;
+                        getItemUseCount = 1;
                     }
                     if (raycastHit.collider.name == "スタミナム" || raycastHit.collider.name == "スタミナム(Clone)")
                     {
                         getItemID = 2;
+                        getItemUseCount = 1;
                     }
                     if (raycastHit.collider.name == "フラッシュライト" || raycastHit.collider.name == "フラッシュライト(Clone)")
                     {
                         getItemID = 3;
+                        getItemUseCount = 1;
                     }
                     if (raycastHit.collider.name == "時計" || raycastHit.collider.name == "時計(Clone)")
                     {
                         getItemID = 4;
+                        getItemUseCount = 1;
+                    }
+                    if (raycastHit.collider.name == "光石" || raycastHit.collider.name == "光石(Clone)")
+                    {
+                        getItemID = 5;
+                        getItemUseCount = 5;
                     }
 
                     if (item1Stock == 0)
                     {
                         item1Stock = getItemID;
+                        item1UseCount = getItemUseCount;
                         Debug.Log(GetItemName(item1Stock) + "を拾った"); //消す
                         getItemID = 0;
+                        getItemUseCount = 0;
                     }
                     else if (item2Stock == 0)
                     {
                         item2Stock = getItemID;
+                        item2UseCount = getItemUseCount;
                         Debug.Log(GetItemName(item2Stock) + "を拾った"); //消す
                         getItemID = 0;
+                        getItemUseCount = 0;
                     }
                     else if (item3Stock == 0)
                     {
                         item3Stock = getItemID;
+                        item3UseCount = getItemUseCount;
                         Debug.Log(GetItemName(item3Stock) + "を拾った"); //消す
                         getItemID = 0;
+                        getItemUseCount = 0;
                     }
 
                 }
@@ -404,7 +428,11 @@ public class Player : MonoBehaviour
                     Debug.Log(GetItemName(item1Stock) + "を使った"); //消す
                     Item(item1Stock);
                     useItemTimer = 1.5f;
-                    item1Stock = 0;
+                    item1UseCount--;
+                    if (item1UseCount == 0)
+                    {
+                        item1Stock = 0;
+                    }
                 }
                 else if (item1Stock != 0 && useItemTimer >= 0)
                 {
@@ -419,7 +447,11 @@ public class Player : MonoBehaviour
                     Debug.Log(GetItemName(item2Stock) + "を使った"); //消す
                     Item(item2Stock);
                     useItemTimer = 1.5f;
-                    item2Stock = 0;
+                    item2UseCount--;
+                    if (item2UseCount == 0)
+                    {
+                        item2Stock = 0;
+                    }
                 }
                 else if (item2Stock != 0 && useItemTimer >= 0)
                 {
@@ -433,7 +465,11 @@ public class Player : MonoBehaviour
                     Debug.Log(GetItemName(item3Stock) + "を使った"); //消す
                     Item(item3Stock);
                     useItemTimer = 1.5f;
-                    item3Stock = 0;
+                    item3UseCount--;
+                    if (item3UseCount == 0)
+                    {
+                        item3Stock = 0;
+                    }
                 }
                 else if (item3Stock != 0 && useItemTimer >= 0)
                 {
@@ -449,7 +485,7 @@ public class Player : MonoBehaviour
             // 後で消す
             if (Input.GetKeyDown(KeyCode.I))
             {
-                Debug.Log("Item1 : " + GetItemName(item1Stock) + "  Item2 : " + GetItemName(item2Stock));
+                Debug.Log("Item1 : " + GetItemName(item1Stock) + "  Item2 : " + GetItemName(item2Stock) + "  Item3 : " + GetItemName(item3Stock));
             }
 
             if (walk && Input.GetKey(KeyCode.LeftShift) && !Squat && !staminaOut)
@@ -822,11 +858,16 @@ public class Player : MonoBehaviour
             flashFlg = 0;
             flashLightTimer = 0;
         }
-
         if (i == 4)
         {
             clockFlg = true;
             clockPos = this.transform.position;
+        }
+        if (i == 5)
+        {
+            GameObject obj = Instantiate(flashStone);
+            obj.transform.position = this.transform.position + Vector3.up * -0.98f;
+            obj = null;
         }
     }
 
@@ -847,6 +888,10 @@ public class Player : MonoBehaviour
         if (ID == 4)
         {
             return "時計";
+        }
+        if (ID == 5)
+        {
+            return "光石";
         }
         else
         {
@@ -877,5 +922,22 @@ public class Player : MonoBehaviour
     public int GetStockItem2()
     {
         return item2Stock;
+    }
+    public int GetStockItem3()
+    {
+        return item3Stock;
+    }
+
+    public int GetItem1Count()
+    {
+        return item1UseCount;
+    }
+    public int GetItem2Count()
+    {
+        return item2UseCount;
+    }
+    public int GetItem3Count()
+    {
+        return item3UseCount;
     }
 }
