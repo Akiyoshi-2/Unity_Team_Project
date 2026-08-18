@@ -465,14 +465,17 @@ MonoBehaviour:
   gridSize: 2
   turnProbability: 0.4
   minStraightSteps: 2
+  floatAmplitude: 0.25
+  floatSpeed: 3
   detectionRange: 30
   killRange: 2
   fovAngle: 120
   searchWaitTime: 2
   doorBreakTime: 0
-  doorBreakRadius: 1
+  doorBreakRadius: 1.25
   doorCheckOffset: {x: 0, y: 1, z: 0.8}
   playerTag: Player
+  warpPointTag: Warp Point
   wallLayer:
     serializedVersion: 2
     m_Bits: 8
@@ -485,9 +488,6 @@ MonoBehaviour:
   warpThreshold: 5
   useTimeStuckWarp: 1
   stuckWarpTime: 10
-  warpAreaLayer:
-    serializedVersion: 2
-    m_Bits: 0
   glitchDuration: 0.3
   shakeIntensity: 0.5
   stretchIntensity: 2

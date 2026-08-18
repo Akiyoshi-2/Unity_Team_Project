@@ -339,6 +339,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 4d914c22159959b4a860efbbb65205e3, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2919493286736197725}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 4d914c22159959b4a860efbbb65205e3, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7144734291570938314}
   m_SourcePrefab: {fileID: 100100000, guid: 4d914c22159959b4a860efbbb65205e3, type: 3}
 --- !u!1 &7101068222805845925 stripped
 GameObject:
@@ -368,6 +371,51 @@ CapsuleCollider:
   m_Height: 5
   m_Direction: 1
   m_Center: {x: 0, y: 2.5, z: 0}
+--- !u!114 &7144734291570938314
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7101068222805845925}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 087dc6d2131e73649ad0d7ff7b1a90f4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Enemy
+  moveSpeed: 3
+  chaseSpeed: 5
+  rotationSpeed: 15
+  gridSize: 2
+  turnProbability: 0.4
+  minStraightSteps: 2
+  floatAmplitude: 0.25
+  floatSpeed: 3
+  detectionRange: 35
+  killRange: 1.2
+  fovAngle: 360
+  searchWaitTime: 2
+  doorBreakTime: 2
+  doorBreakRadius: 1.25
+  doorCheckOffset: {x: 0, y: 1, z: 0.8}
+  playerTag: Player
+  warpPointTag: Warp Point
+  wallLayer:
+    serializedVersion: 2
+    m_Bits: 8
+  wallByEnemyLayer:
+    serializedVersion: 2
+    m_Bits: 64
+  showVisitLevels: 1
+  volume: {fileID: 0}
+  useLevelLoopWarp: 1
+  warpThreshold: 5
+  useTimeStuckWarp: 1
+  stuckWarpTime: 10
+  glitchDuration: 0.3
+  shakeIntensity: 0.5
+  stretchIntensity: 2
+  glitchCooldown: 5
 --- !u!4 &7622306362073578783 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 4d914c22159959b4a860efbbb65205e3, type: 3}

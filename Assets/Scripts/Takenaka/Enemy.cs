@@ -28,7 +28,7 @@ public class Enemy : MonoBehaviour
 
     [Header("ドア破壊設定")]
     public float doorBreakTime = 2.0f;
-    public float doorBreakRadius = 1.0f;
+    public float doorBreakRadius = 1.25f;
     public Vector3 doorCheckOffset = new Vector3(0, 1.0f, 0.8f);
     private float doorBreakTimer = 0f;
 
@@ -222,7 +222,7 @@ public class Enemy : MonoBehaviour
     // --- 移動処理（安全装置付き） ---
     void MoveTowardsTargetSafe()
     {
-        // 安全装置：もし目的地が1グリッドより遠すぎる場合（ワープの残骸など）、その場でリセットする
+        // 目的地が異常に遠い（ワープ時など）場合の補正
         if (Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), new Vector3(currentTargetCell.x, 0, currentTargetCell.z)) > gridSize * 1.5f)
         {
             currentTargetCell = GetGridPosition(transform.position);
@@ -234,7 +234,8 @@ public class Enemy : MonoBehaviour
 
         if (targetDirection != Vector3.zero)
         {
-            transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(targetDirection), rotSpeed * 100f * Time.deltaTime);
+            Quaternion targetRot = Quaternion.LookRotation(targetDirection);
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot, rotSpeed * 100f * Time.deltaTime);
         }
 
         Vector3 horizontalTarget = new Vector3(currentTargetCell.x, transform.position.y, currentTargetCell.z);
@@ -243,14 +244,18 @@ public class Enemy : MonoBehaviour
         float floatingY = startY + Mathf.Sin(Time.time * floatSpeed) * floatAmplitude;
         nextPos.y = floatingY;
 
-        if (!Physics.SphereCast(transform.position + Vector3.up, 0.4f, (nextPos - transform.position).normalized, out _, Vector3.Distance(transform.position, nextPos), combinedMoveMask))
+        // 移動先の経路を再チェック（combinedMoveMaskを使用）
+        Vector3 moveDir = (nextPos - transform.position).normalized;
+        float moveDist = Vector3.Distance(transform.position, nextPos);
+
+        if (moveDist > 0.001f && !Physics.SphereCast(transform.position + Vector3.up, 0.3f, moveDir, out _, moveDist, combinedMoveMask))
         {
             transform.position = nextPos;
         }
-        else
+        else if (Vector3.Distance(transform.position, horizontalTarget) < 0.05f)
         {
-            SnapToGrid();
-            Vector3 p = transform.position; p.y = floatingY; transform.position = p;
+            // 目的地にほぼ到着しているなら位置を固定
+            transform.position = new Vector3(horizontalTarget.x, floatingY, horizontalTarget.z);
         }
     }
 
@@ -272,6 +277,8 @@ public class Enemy : MonoBehaviour
     {
         if (vignette != null) vignette.enabled.value = true;
         if (chromaticAberration != null) chromaticAberration.enabled.value = true;
+
+        TriggerGlitchEffect();
 
         float distToTarget = Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), new Vector3(currentTargetCell.x, 0, currentTargetCell.z));
         if (distToTarget < 0.1f)
@@ -338,8 +345,34 @@ public class Enemy : MonoBehaviour
     Vector3 GetBestDirectionTowards(Vector3 currentGrid, Vector3 targetGrid)
     {
         Vector3[] dirs = { Vector3.forward, Vector3.back, Vector3.right, Vector3.left };
-        Vector3 bestDir = targetDirection; float minDist = float.MaxValue;
-        foreach (Vector3 d in dirs) { if (!Physics.CheckSphere(currentGrid + d * gridSize + Vector3.up, 0.5f, combinedMoveMask)) { float dist = Vector3.Distance(currentGrid + d * gridSize, targetGrid); if (dist < minDist) { minDist = dist; bestDir = d; } } }
+        Vector3 bestDir = Vector3.zero; // 初期化
+        float minDist = float.MaxValue;
+        bool foundValidMove = false;
+
+        foreach (Vector3 d in dirs)
+        {
+            Vector3 checkPos = currentGrid + d * gridSize;
+
+            // 1. 目的地の地点に障害物がないか (CheckSphere)
+            // 2. 現在地から目的地までの間に壁（Enemy専用壁含む）がないか (Linecast)
+            bool isBlocked = Physics.CheckSphere(checkPos + Vector3.up, 0.5f, combinedMoveMask) ||
+                             Physics.Linecast(currentGrid + Vector3.up, checkPos + Vector3.up, combinedMoveMask);
+
+            if (!isBlocked)
+            {
+                float dist = Vector3.Distance(checkPos, targetGrid);
+                if (dist < minDist)
+                {
+                    minDist = dist;
+                    bestDir = d;
+                    foundValidMove = true;
+                }
+            }
+        }
+
+        // 全ての方向が塞がっている（あり得ないが）場合は今の向きを維持
+        if (!foundValidMove) return targetDirection;
+
         return bestDir;
     }
 
@@ -389,13 +422,38 @@ public class Enemy : MonoBehaviour
         return false;
     }
 
-    void StartChase() { if (currentState != State.Chase) { currentState = State.Chase; visitLevelMap.Clear(); if (Time.time >= lastGlitchTime + glitchCooldown) { StartCoroutine(PlayHardGlitch()); lastGlitchTime = Time.time; } } }
+    void StartChase()
+    {
+        if (currentState != State.Chase)
+        {
+            currentState = State.Chase;
+            visitLevelMap.Clear();
+
+            // ここを修正：壁越し（wallByEnemy含む）ではない時だけ演出を実行
+            TriggerGlitchEffect();
+        }
+    }
+    void TriggerGlitchEffect()
+    {
+        if (IsVisualClear() && Time.time >= lastGlitchTime + glitchCooldown)
+        {
+            StartCoroutine(PlayHardGlitch());
+            lastGlitchTime = Time.time;
+        }
+    }
     int GetVisitLevel(Vector3 pos) => visitLevelMap.ContainsKey(pos) ? visitLevelMap[pos] : 0;
     private void OnCollisionEnter(Collision collision) { if (collision.gameObject.CompareTag(playerTag)) Destroy(collision.gameObject); }
     Vector3 RoundVector(Vector3 v) => new Vector3(Mathf.Round(v.x), 0, Mathf.Round(v.z)).normalized;
     Vector3 GetGridPosition(Vector3 pos) => new Vector3(Mathf.Round(pos.x / gridSize) * gridSize, 0, Mathf.Round(pos.z / gridSize) * gridSize);
     void SnapToGrid() { Vector3 g = GetGridPosition(transform.position); transform.position = new Vector3(g.x, transform.position.y, g.z); }
     Vector3 SortByLevelPriority(List<Vector3> options) { Vector3 cur = GetGridPosition(transform.position); for (int i = 0; i < options.Count; i++) { Vector3 t = options[i]; int r = UnityEngine.Random.Range(i, options.Count); options[i] = options[r]; options[r] = t; } Vector3 best = options[0]; int min = 99; foreach (Vector3 d in options) { int v = GetVisitLevel(cur + d * gridSize); if (v < min) { min = v; best = d; } } return best; }
+    // 完全に何も遮るものがない（演出を出していい）かチェック
+    bool IsVisualClear()
+    {
+        if (player == null) return false;
+        // combinedMoveMaskを使うことで、wallByEnemyLayer越しならfalseになる
+        return !Physics.Linecast(transform.position + Vector3.up, player.position + Vector3.up, combinedMoveMask);
+    }
 
     void OnDrawGizmos()
     {

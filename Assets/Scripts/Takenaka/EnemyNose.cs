@@ -15,7 +15,7 @@ public class EnemyNose : MonoBehaviour
     public float turnProbability = 0.4f;
     public int minStraightSteps = 2;
 
-    [Header("浮遊設定")] // ★追加
+    [Header("浮遊設定")]
     public float floatAmplitude = 0.25f;
     public float floatSpeed = 3.0f;
     private float startY;
@@ -25,6 +25,12 @@ public class EnemyNose : MonoBehaviour
     public float killRange = 1.2f;
     public float fovAngle = 90.0f;
     public float searchWaitTime = 2.0f;
+
+    [Header("ドア破壊設定")] // ★追加
+    public float doorBreakTime = 2.0f;
+    public float doorBreakRadius = 1.25f;
+    public Vector3 doorCheckOffset = new Vector3(0, 1.0f, 0.8f);
+    private float doorBreakTimer = 0f;
 
     [Header("レイヤー・タグ設定")]
     public string playerTag = "Player";
@@ -93,7 +99,7 @@ public class EnemyNose : MonoBehaviour
         if (wallLayer == 0) wallLayer = LayerMask.GetMask("Wall");
 
         SnapToGrid();
-        startY = transform.position.y; // ★高さの初期値を記憶
+        startY = transform.position.y;
         currentTargetCell = GetGridPosition(transform.position);
         targetDirection = transform.forward;
 
@@ -118,6 +124,9 @@ public class EnemyNose : MonoBehaviour
 
         HandleFlashlightStun();
 
+        // ★ドア破壊チェックを追加
+        if (CheckAndBreakDoor()) return;
+
         bool canSee = CanSeePlayer();
 
         if (canSee)
@@ -132,7 +141,7 @@ public class EnemyNose : MonoBehaviour
                 stuckTimer += Time.deltaTime;
                 if (stuckTimer >= stuckWarpTime)
                 {
-                    WarpToNearestPoint(); // ★修正済みのワープ
+                    WarpToNearestPoint();
                 }
             }
         }
@@ -154,7 +163,32 @@ public class EnemyNose : MonoBehaviour
         }
     }
 
-    // ★修正：ワープ後に古い場所へ戻らないように状態を完全にリセットする
+    // ★ドアを検知して破壊するロジック
+    bool CheckAndBreakDoor()
+    {
+        Vector3 checkCenter = transform.position + transform.right * doorCheckOffset.x + transform.up * doorCheckOffset.y + transform.forward * doorCheckOffset.z;
+        Collider[] hitColliders = Physics.OverlapSphere(checkCenter, doorBreakRadius);
+        bool foundDoor = false;
+        foreach (var hit in hitColliders) { if (hit.CompareTag("Door") || hit.CompareTag("wDoor")) { foundDoor = true; break; } }
+
+        if (foundDoor)
+        {
+            doorBreakTimer += Time.deltaTime;
+            if (doorBreakTimer >= doorBreakTime)
+            {
+                foreach (var hit in hitColliders)
+                {
+                    if (hit.CompareTag("Door") || hit.CompareTag("wDoor")) Destroy(hit.gameObject);
+                }
+                doorBreakTimer = 0f;
+            }
+            return true;
+        }
+
+        doorBreakTimer = 0f;
+        return false;
+    }
+
     void WarpToNearestPoint()
     {
         GameObject[] points = GameObject.FindGameObjectsWithTag(warpPointTag);
@@ -177,21 +211,19 @@ public class EnemyNose : MonoBehaviour
 
         if (nearestPoint != null)
         {
-            // 1. 物理位置をワープ
             transform.position = new Vector3(nearestPoint.transform.position.x, nearestPoint.transform.position.y, nearestPoint.transform.position.z);
-            startY = transform.position.y; // 新しい高さを基準にする
+            startY = transform.position.y;
             SnapToGrid();
 
-            // 2. 思考リセット（ここが重要：古い目的地を消す）
-            currentTargetCell = GetGridPosition(transform.position); // 目的地を「現在地」に上書き
-            lastSeenCell = new Vector3(9999f, 9999f, 9999f);        // プレイヤーの記憶を消去
-            currentState = State.Patrol;                            // パトロールに戻す
+            currentTargetCell = GetGridPosition(transform.position);
+            lastSeenCell = new Vector3(9999f, 9999f, 9999f);
+            currentState = State.Patrol;
 
             stuckTimer = 0f;
             consecutiveMaxLevelCount = 0;
-            visitLevelMap.Clear(); // 訪問記録をリセット
+            doorBreakTimer = 0f; // タイマーリセット
+            visitLevelMap.Clear();
 
-            // 3. その場で新しい進むべき方向を決める
             ChooseNewRandomDirection();
 
             StartCoroutine(PlayHardGlitch());
@@ -199,7 +231,6 @@ public class EnemyNose : MonoBehaviour
         }
     }
 
-    // ワープ直後に進む方向を再決定するヘルパー
     void ChooseNewRandomDirection()
     {
         Vector3 currentPos = GetGridPosition(transform.position);
@@ -242,10 +273,8 @@ public class EnemyNose : MonoBehaviour
         else visitLevelMap[pos] = 1;
     }
 
-    // ★修正：浮遊ロジックと目的地チェックを追加
     void MoveTowardsTargetSafe()
     {
-        // 安全装置：もし目的地がワープなどで遠すぎる場合はその場でリセット
         if (Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), new Vector3(currentTargetCell.x, 0, currentTargetCell.z)) > gridSize * 1.5f)
         {
             currentTargetCell = GetGridPosition(transform.position);
@@ -258,11 +287,9 @@ public class EnemyNose : MonoBehaviour
         if (targetDirection != Vector3.zero)
             transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(targetDirection), rotSpeed * 100f * Time.deltaTime);
 
-        // 水平方向の移動
         Vector3 horizontalTarget = new Vector3(currentTargetCell.x, transform.position.y, currentTargetCell.z);
         Vector3 nextPos = Vector3.MoveTowards(transform.position, horizontalTarget, speed * Time.deltaTime);
 
-        // ★垂直方向（ふわふわ）の計算
         float floatingY = startY + Mathf.Sin(Time.time * floatSpeed) * floatAmplitude;
         nextPos.y = floatingY;
 
@@ -277,14 +304,11 @@ public class EnemyNose : MonoBehaviour
         }
     }
 
-    // --- (以下、既存ロジックの修正・維持) ---
-
     void SearchLogic()
     {
         if (vignette != null) vignette.enabled.value = false;
         if (chromaticAberration != null) chromaticAberration.enabled.value = false;
 
-        // ★lastSeenCellがリセット（Infinity）されていたらSearchをやめる
         if (lastSeenCell.x > 5000f) { currentState = State.Patrol; return; }
 
         float dTarget = Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), new Vector3(currentTargetCell.x, 0, currentTargetCell.z));
@@ -413,6 +437,11 @@ public class EnemyNose : MonoBehaviour
         Vector3 left = Quaternion.Euler(0, -fovAngle * 0.5f, 0) * transform.forward;
         Vector3 right = Quaternion.Euler(0, fovAngle * 0.5f, 0) * transform.forward;
         Gizmos.DrawRay(eyePos, left * detectionRange); Gizmos.DrawRay(eyePos, right * detectionRange);
+
+        // ★ドア破壊のGizmoを表示
+        Vector3 checkCenter = transform.position + transform.right * doorCheckOffset.x + transform.up * doorCheckOffset.y + transform.forward * doorCheckOffset.z;
+        Gizmos.color = (doorBreakTimer > 0) ? Color.red : Color.green;
+        Gizmos.DrawWireSphere(checkCenter, doorBreakRadius);
     }
 
     void DrawGizmoCircle(Vector3 center, float radius) { int segments = 20; float step = 360f / segments; Vector3 prev = center + new Vector3(radius, 0, 0); for (int i = 1; i <= segments; i++) { float a = i * step * Mathf.Deg2Rad; Vector3 next = center + new Vector3(Mathf.Cos(a) * radius, 0, Mathf.Sin(a) * radius); Gizmos.DrawLine(prev, next); prev = next; } }

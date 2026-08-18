@@ -159,5 +159,58 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 978b27d61fc183d4182181978a899a4c, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -6678913177944950784}
   m_SourcePrefab: {fileID: 100100000, guid: 978b27d61fc183d4182181978a899a4c, type: 3}
+--- !u!1 &8457889738214854138 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 978b27d61fc183d4182181978a899a4c, type: 3}
+  m_PrefabInstance: {fileID: 8764317369565376683}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &-6678913177944950784
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8457889738214854138}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 087dc6d2131e73649ad0d7ff7b1a90f4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Enemy
+  moveSpeed: 3
+  chaseSpeed: 5
+  rotationSpeed: 15
+  gridSize: 2
+  turnProbability: 0.4
+  minStraightSteps: 2
+  floatAmplitude: 0.25
+  floatSpeed: 3
+  detectionRange: 20
+  killRange: 1.2
+  fovAngle: 100
+  searchWaitTime: 2
+  doorBreakTime: 3
+  doorBreakRadius: 1.25
+  doorCheckOffset: {x: 0, y: 1, z: 0.8}
+  playerTag: Player
+  warpPointTag: Warp Point
+  wallLayer:
+    serializedVersion: 2
+    m_Bits: 8
+  wallByEnemyLayer:
+    serializedVersion: 2
+    m_Bits: 64
+  showVisitLevels: 1
+  volume: {fileID: 0}
+  useLevelLoopWarp: 1
+  warpThreshold: 5
+  useTimeStuckWarp: 1
+  stuckWarpTime: 10
+  glitchDuration: 0.3
+  shakeIntensity: 0.5
+  stretchIntensity: 2
+  glitchCooldown: 5
