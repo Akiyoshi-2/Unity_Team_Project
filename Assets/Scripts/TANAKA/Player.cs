@@ -76,6 +76,7 @@ public class Player : MonoBehaviour
 
     private int item1Stock = 0;
     private int item2Stock = 0;
+    private int item3Stock = 0;
 
     private float useItemTimer;
 
@@ -238,8 +239,15 @@ public class Player : MonoBehaviour
                         Debug.Log(GetItemName(item2Stock) + "を拾った"); //消す
                         getItemID = 0;
                     }
+                    else if (item3Stock == 0)
+                    {
+                        item3Stock = getItemID;
+                        Debug.Log(GetItemName(item3Stock) + "を拾った"); //消す
+                        getItemID = 0;
+                    }
+
                 }
-                else if (hit && raycastHit.collider.tag == "item" && item1Stock != 0 && item2Stock != 0)
+                else if (hit && raycastHit.collider.tag == "item" && item1Stock != 0 && item2Stock != 0 && item3Stock != 0)
                 {
                     Debug.Log("これ以上アイテムを拾えません"); //消す
                 }
@@ -414,6 +422,20 @@ public class Player : MonoBehaviour
                     item2Stock = 0;
                 }
                 else if (item2Stock != 0 && useItemTimer >= 0)
+                {
+                    Debug.Log("アイテムクールタイム中・残り時間(" + useItemTimer + "秒)"); //消す
+                }
+            }
+            if (Input.GetKeyDown(KeyCode.Alpha3))
+            {
+                if (item3Stock != 0 && useItemTimer <= 0)
+                {
+                    Debug.Log(GetItemName(item3Stock) + "を使った"); //消す
+                    Item(item3Stock);
+                    useItemTimer = 1.5f;
+                    item3Stock = 0;
+                }
+                else if (item3Stock != 0 && useItemTimer >= 0)
                 {
                     Debug.Log("アイテムクールタイム中・残り時間(" + useItemTimer + "秒)"); //消す
                 }
