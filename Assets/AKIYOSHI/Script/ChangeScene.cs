@@ -20,6 +20,14 @@ public class ChangeScene : MonoBehaviour
         {
             if (player.GetGoalItemFlg())
             {
+                // åªç›ÇÃÉVÅ[ÉìñºÇï€ë∂
+                PlayerPrefs.SetString(
+                    "ClearFromScene",
+                    UnityEngine.SceneManagement.SceneManager.GetActiveScene().name
+                );
+
+                PlayerPrefs.Save();
+
                 FadeManager.Instance.LoadScene(nextSceneName);
             }
         }
