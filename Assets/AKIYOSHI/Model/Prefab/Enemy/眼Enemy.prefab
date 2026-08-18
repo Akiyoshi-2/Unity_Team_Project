@@ -101,6 +101,7 @@ GameObject:
   - component: {fileID: 3234524716962307197}
   - component: {fileID: 8034679069464159615}
   - component: {fileID: 4105023674895253079}
+  - component: {fileID: 6522261412601945574}
   m_Layer: 0
   m_Name: "\u773CEnemy"
   m_TagString: Enemy
@@ -197,6 +198,24 @@ MonoBehaviour:
   shakeIntensity: 0.5
   stretchIntensity: 2
   glitchCooldown: 5
+--- !u!114 &6522261412601945574
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2857683202295858887}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Outline
+  outlineMode: 2
+  outlineColor: {r: 1, g: 1, b: 1, a: 1}
+  outlineWidth: 2
+  precomputeOutline: 0
+  bakeKeys: []
+  bakeValues: []
 --- !u!1 &3801149113128612765
 GameObject:
   m_ObjectHideFlags: 0

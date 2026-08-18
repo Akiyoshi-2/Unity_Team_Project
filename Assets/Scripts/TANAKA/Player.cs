@@ -131,6 +131,8 @@ public class Player : MonoBehaviour
 
     private bool flashEnemyChecked = false;
 
+    GameObject[] enemyObjects = null;
+
     private void Start()
     {
         volume.profile.TryGetSettings(out bloom);
@@ -140,7 +142,7 @@ public class Player : MonoBehaviour
                          .GetComponent<SoundManager>();
 
         // ƒV[ƒ““à‚ÌEnemy‚ğ‚·‚×‚Äæ“¾
-        GameObject[] enemyObjects = GameObject.FindGameObjectsWithTag("Enemy");
+        enemyObjects = GameObject.FindGameObjectsWithTag("Enemy");
 
         m_Enemies = new Enemy[enemyObjects.Length];
 
@@ -577,17 +579,26 @@ public class Player : MonoBehaviour
 
         if (enemyOutline)
         {
+            for (int i = 0; i < enemyObjects.Length; i++)
+            {
+                m_Enemies[i].GetComponent<Outline>().enabled = true;
+            }
+
             outlineTimer += Time.deltaTime;
 
             if (outlineTimer > ohudaTime)
             {
                 enemyOutline = false;
-                outlineTimer = 0f;
             }
         }
         else
         {
-            outlineTimer = 0f;
+            for (int i = 0; i < enemyObjects.Length; i++)
+            {
+                m_Enemies[i].GetComponent<Outline>().enabled = false;
+            }
+
+            outlineTimer = 0;
         }
 
         if (staminam)
