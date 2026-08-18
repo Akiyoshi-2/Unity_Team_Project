@@ -54,8 +54,6 @@ public class Player : MonoBehaviour
     [SerializeField]
     private float m_RotationSpeed = 2f;
 
-    private int playerMoveFlg = 0;
-
     private bool Squat = false;
     private bool SquatMove = false;
 
@@ -103,6 +101,11 @@ public class Player : MonoBehaviour
     private float ohudaTime = 10;
     [SerializeField]
     private float flashLightTime = 10;
+
+    [NonSerialized]
+    public bool clockFlg = false;
+    
+    private Vector3 clockPos = Vector3.zero;
 
     private bool getCompass = false;
 
@@ -216,6 +219,10 @@ public class Player : MonoBehaviour
                     if (raycastHit.collider.name == "フラッシュライト" || raycastHit.collider.name == "フラッシュライト(Clone)")
                     {
                         getItemID = 3;
+                    }
+                    if (raycastHit.collider.name == "時計" || raycastHit.collider.name == "時計(Clone)")
+                    {
+                        getItemID = 4;
                     }
 
                     if (item1Stock == 0)
@@ -632,6 +639,11 @@ public class Player : MonoBehaviour
             flashEnemyChecked = false;
         }
 
+        if (!clockFlg)
+        {
+            clockPos = Vector3.zero;
+        }
+
         if ((staminaOut || tagChange) && !staminam)
         {
             m_ForwardSpeed = SquatSpeed;
@@ -787,6 +799,12 @@ public class Player : MonoBehaviour
             flashFlg = 0;
             flashLightTimer = 0;
         }
+
+        if (i == 4)
+        {
+            clockFlg = true;
+            clockPos = this.transform.position;
+        }
     }
 
     private System.String GetItemName(int ID)
@@ -803,10 +821,19 @@ public class Player : MonoBehaviour
         {
             return "フラッシュライト";
         }
+        if (ID == 4)
+        {
+            return "時計";
+        }
         else
         {
             return null;
         }
+    }
+
+    public Vector3 GetClockPos()
+    {
+        return clockPos;
     }
 
     public bool GetCompassFlg()
