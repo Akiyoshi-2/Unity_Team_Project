@@ -102,6 +102,7 @@ public class Player : MonoBehaviour
     [SerializeField]
     private float flashLightTime = 10;
 
+    // アイテム使ったらtrue
     [NonSerialized]
     public bool clockFlg = false;
     
@@ -831,6 +832,7 @@ public class Player : MonoBehaviour
         }
     }
 
+    // 時計使った座標の取得
     public Vector3 GetClockPos()
     {
         return clockPos;
