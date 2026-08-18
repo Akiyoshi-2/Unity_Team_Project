@@ -253,23 +253,19 @@ public class Player : MonoBehaviour
 
                     transform.localScale = Vector3.zero;
 
-                    // HideBoxの中心よりY方向に1m上へ
-                    transform.position = raycastHit.transform.position + Vector3.up * 0.5f;
+                    this.GetComponent<CapsuleCollider>().isTrigger = true;
 
-                    transform.localEulerAngles =
-                        new Vector3(
-                            raycastHit.transform.localEulerAngles.x,
-                            raycastHit.transform.localEulerAngles.y + 90,
-                            raycastHit.transform.localEulerAngles.z
-                        );
+                    // HideBoxの中心よりY方向に1m上へ
+                    transform.position = raycastHit.transform.position + Vector3.up * 0.53f + Vector3.left * 0.15f;
 
                     dirStop = raycastHit.transform.localEulerAngles.y + 90;
 
                     rb.useGravity = false;
                     tagChange = true;
 
-                    // HideBoxに入ったとき、現在のカメラの向きを180°反転
-m_Camera.transform.localEulerAngles += new Vector3(0f, 180f, 0f);
+                    m_Camera.transform.localEulerAngles += new Vector3(0f, 180f, 0f);
+
+                    m_Camera.fieldOfView = 30f;
                 }
 
                 if (hit && raycastHit.collider.tag == "Door" && doorFlg == 0)
@@ -470,6 +466,9 @@ m_Camera.transform.localEulerAngles += new Vector3(0f, 180f, 0f);
                     this.transform.localScale = Vector3.one;
                 }
                 this.transform.position = posSave;
+                m_Camera.transform.localEulerAngles += new Vector3(0f, 180f, 0f);
+                m_Camera.fieldOfView = 60f;
+                this.GetComponent<CapsuleCollider>().isTrigger = false;
                 rb.useGravity = true;
                 tagChange = false;
             }
