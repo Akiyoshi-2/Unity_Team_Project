@@ -7,6 +7,7 @@ public class SoundManager : MonoBehaviour
     public enum SEType
     {
         WALK,
+        RUN,
     }
 
     public enum BGMType
@@ -50,7 +51,7 @@ public class SoundManager : MonoBehaviour
     {
         int index = (int)type;
 
-        if (index < 0 || index > m_SEClips.Length) return;
+        if (index < 0 || index >= m_SEClips.Length) return;
 
         foreach (AudioSource source in m_SESourceList)
         {
@@ -65,7 +66,7 @@ public class SoundManager : MonoBehaviour
     public void PlayBGM(BGMType type)
     {
         int index = (int)type;
-        if (index < 0 || index > m_BGMClips.Length) return;
+        if (index < 0 || index >= m_BGMClips.Length) return;
 
         m_BGMSource.clip = m_BGMClips[index];
         m_BGMSource.Play();

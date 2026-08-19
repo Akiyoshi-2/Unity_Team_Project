@@ -67,6 +67,18 @@ public class Player : MonoBehaviour
     private bool run = false;
     private bool walk = false;
 
+    // 足音設定
+    [SerializeField]
+    private float walkStepInterval = 0.5f;
+
+    [SerializeField]
+    private float runStepInterval = 0.3f;
+
+    [SerializeField]
+    private float squatStepInterval = 0.7f;
+
+    private float footstepTimer = 0f;
+
     private bool tagChange = false;
 
     private Vector3 posSave = Vector3.zero;
@@ -129,6 +141,15 @@ public class Player : MonoBehaviour
 
     private SoundManager sound;
 
+    [Header("足音")]
+    [SerializeField]
+    private AudioClip walkClip;
+
+    [SerializeField]
+    private AudioClip runClip;
+
+    private AudioSource footstepSource;
+
     private bool flashEnemyChecked = false;
 
     GameObject[] enemyObjects = null;
@@ -140,6 +161,11 @@ public class Player : MonoBehaviour
 
         sound = GameObject.FindGameObjectWithTag("SoundManager")
                          .GetComponent<SoundManager>();
+
+        footstepSource = gameObject.AddComponent<AudioSource>();
+        footstepSource.loop = true;
+        footstepSource.playOnAwake = false;
+        footstepSource.spatialBlend = 1f;
 
         // シーン内のEnemyをすべて取得
         enemyObjects = GameObject.FindGameObjectsWithTag("Enemy");
@@ -190,25 +216,21 @@ public class Player : MonoBehaviour
 
             if (Input.GetKey(KeyCode.W))
             {
-                //sound.PlaySE(SoundManager.SEType.WALK);
                 Vector3 headBob = headBob_.DoHeadBob(0.8f);
                 m_Camera.transform.localPosition = headBob;
 
                 moveXZ += this.transform.forward * m_ForwardSpeed;
+
                 if (run && !staminaOut && !staminam)
                 {
                     stamina -= Time.deltaTime * 10 / staminaTime;
+
                     if (stamina <= 0)
                     {
                         run = false;
                         staminaOut = true;
                     }
                 }
-                walk = true;
-            }
-            else
-            {
-                walk = false;
             }
 
             if (Input.GetKeyDown(KeyCode.F))
@@ -490,7 +512,7 @@ public class Player : MonoBehaviour
                 Debug.Log("Item1 : " + GetItemName(item1Stock) + "  Item2 : " + GetItemName(item2Stock) + "  Item3 : " + GetItemName(item3Stock));
             }
 
-            if (walk && Input.GetKey(KeyCode.LeftShift) && !Squat && !staminaOut)
+            if (Input.GetKey(KeyCode.W) && Input.GetKey(KeyCode.LeftShift) && !Squat && !staminaOut)
             {
                 m_ForwardSpeed = DashSpeed;
                 m_SideSpeed = BackSideSpeed;
@@ -766,6 +788,8 @@ public class Player : MonoBehaviour
             this.transform.tag = "Player";
         }
 
+        UpdateFootstepSound(moveXZ);
+
         rb.linearVelocity = new Vector3(moveXZ.x, moveY, moveXZ.z);
 
         if (!tagChange)
@@ -849,6 +873,93 @@ public class Player : MonoBehaviour
             m_SideSpeed = BackSideSpeed;
             m_BackSpeed = BackSideSpeed;
             SquatMove = false;
+        }
+    }
+
+    private float walkPlayPosition = 0f;
+    private float runPlayPosition = 0f;
+
+    private void UpdateFootstepSound(Vector3 moveXZ)
+    {
+        bool isMoving = moveXZ.sqrMagnitude > 0.01f;
+
+        // 移動していない
+        if (!isMoving || tagChange)
+        {
+            if (footstepSource.isPlaying)
+            {
+                // 現在の再生位置を保存
+                if (footstepSource.clip == walkClip)
+                {
+                    walkPlayPosition = footstepSource.time;
+                }
+                else if (footstepSource.clip == runClip)
+                {
+                    runPlayPosition = footstepSource.time;
+                }
+
+                footstepSource.Pause();
+            }
+
+            return;
+        }
+
+        AudioClip targetClip;
+
+        if (run)
+        {
+            targetClip = runClip;
+        }
+        else
+        {
+            targetClip = walkClip;
+        }
+
+        // 歩き・走りの音声が切り替わった
+        if (footstepSource.clip != targetClip)
+        {
+            // 現在の音声の再生位置を保存
+            if (footstepSource.clip == walkClip)
+            {
+                walkPlayPosition = footstepSource.time;
+            }
+            else if (footstepSource.clip == runClip)
+            {
+                runPlayPosition = footstepSource.time;
+            }
+
+            footstepSource.clip = targetClip;
+
+            // それぞれの音声の前回の再生位置を復元
+            if (targetClip == walkClip)
+            {
+                footstepSource.time = walkPlayPosition;
+            }
+            else if (targetClip == runClip)
+            {
+                footstepSource.time = runPlayPosition;
+            }
+
+            footstepSource.Play();
+        }
+        else if (!footstepSource.isPlaying)
+        {
+            // 音声が最後まで再生されていた場合
+            if (footstepSource.time >= footstepSource.clip.length - 0.01f)
+            {
+                footstepSource.time = 0f;
+
+                if (footstepSource.clip == walkClip)
+                {
+                    walkPlayPosition = 0f;
+                }
+                else if (footstepSource.clip == runClip)
+                {
+                    runPlayPosition = 0f;
+                }
+            }
+
+            footstepSource.Play();
         }
     }
 

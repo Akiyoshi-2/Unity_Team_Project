@@ -76,6 +76,7 @@ public class Enemy : MonoBehaviour
     public float stuckWarpTime = 10.0f;
     private int consecutiveMaxLevelCount = 0;
     private float stuckTimer = 0f;
+    private Vector3 lastStuckCheckPosition;
 
     [Header("ノイズ演出設定")]
     [SerializeField] private float glitchDuration = 0.3f;
@@ -109,6 +110,7 @@ public class Enemy : MonoBehaviour
         saveMoveSpeed = moveSpeed;
         saveDetectionRange = detectionRange;
 
+        lastStuckCheckPosition = transform.position;
     }
 
     void Update()
@@ -142,14 +144,6 @@ public class Enemy : MonoBehaviour
             }
         }
 
-        // スタックタイマー等の更新
-        if (canSee) { consecutiveMaxLevelCount = 0; stuckTimer = 0f; }
-        else if (useTimeStuckWarp)
-        {
-            stuckTimer += Time.deltaTime;
-            if (stuckTimer >= stuckWarpTime) WarpToNearestTaggedPoint();
-        }
-
         // 状態遷移
         switch (currentState)
         {
@@ -168,6 +162,46 @@ public class Enemy : MonoBehaviour
             case State.Distracted:
                 DistractedLogic();
                 break;
+        }
+
+        // 実際に動いているかチェック
+        if (useTimeStuckWarp)
+        {
+            Vector3 currentPos = transform.position;
+
+            Vector3 currentHorizontalPos = new Vector3(
+                currentPos.x,
+                0f,
+                currentPos.z
+            );
+
+            Vector3 lastHorizontalPos = new Vector3(
+                lastStuckCheckPosition.x,
+                0f,
+                lastStuckCheckPosition.z
+            );
+
+            float movedDistance = Vector3.Distance(
+                currentHorizontalPos,
+                lastHorizontalPos
+            );
+
+            if (movedDistance < 0.01f)
+            {
+                stuckTimer += Time.deltaTime;
+
+                if (stuckTimer >= stuckWarpTime)
+                {
+                    WarpToNearestTaggedPoint();
+                    stuckTimer = 0f;
+                    lastStuckCheckPosition = transform.position;
+                }
+            }
+            else
+            {
+                stuckTimer = 0f;
+                lastStuckCheckPosition = transform.position;
+            }
         }
     }
 
@@ -258,28 +292,45 @@ public class Enemy : MonoBehaviour
     void WarpToNearestTaggedPoint()
     {
         GameObject[] points = GameObject.FindGameObjectsWithTag(warpPointTag);
-        if (points == null || points.Length == 0) return;
+
+        if (points == null || points.Length == 0)
+            return;
+
         GameObject nearestPoint = null;
         float minDistance = float.MaxValue;
+
         foreach (GameObject p in points)
         {
             float dist = Vector3.Distance(transform.position, p.transform.position);
-            if (dist < minDistance) { minDistance = dist; nearestPoint = p; }
+
+            if (dist < minDistance)
+            {
+                minDistance = dist;
+                nearestPoint = p;
+            }
         }
+
         if (nearestPoint != null)
         {
-            transform.position = new Vector3(nearestPoint.transform.position.x, nearestPoint.transform.position.y, nearestPoint.transform.position.z);
+            transform.position = new Vector3(
+                nearestPoint.transform.position.x,
+                nearestPoint.transform.position.y,
+                nearestPoint.transform.position.z
+            );
+
             startY = transform.position.y;
             SnapToGrid();
+
             currentTargetCell = GetGridPosition(transform.position);
             currentState = State.Patrol;
+
             lastSeenCell = new Vector3(9999f, 9999f, 9999f);
             searchTimer = 0f;
             stuckTimer = 0f;
             consecutiveMaxLevelCount = 0;
+
             visitLevelMap.Clear();
             ChooseNewRandomDirection();
-            StartCoroutine(PlayHardGlitch());
         }
     }
 
@@ -342,15 +393,23 @@ public class Enemy : MonoBehaviour
     {
         if (vignette != null) vignette.enabled.value = true;
         if (chromaticAberration != null) chromaticAberration.enabled.value = true;
-        TriggerGlitchEffect();
-        float distToTarget = Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), new Vector3(currentTargetCell.x, 0, currentTargetCell.z));
+
+        float distToTarget = Vector3.Distance(
+            new Vector3(transform.position.x, 0, transform.position.z),
+            new Vector3(currentTargetCell.x, 0, currentTargetCell.z)
+        );
+
         if (distToTarget < 0.1f)
         {
             Vector3 p = GetGridPosition(transform.position);
             AddVisitLevel(p);
-            targetDirection = GetBestDirectionTowards(p, GetGridPosition(player.position));
+            targetDirection = GetBestDirectionTowards(
+                p,
+                GetGridPosition(player.position)
+            );
             currentTargetCell = p + targetDirection * gridSize;
         }
+
         MoveTowardsTargetSafe();
     }
 
@@ -475,10 +534,19 @@ public class Enemy : MonoBehaviour
         {
             currentState = State.Chase;
             visitLevelMap.Clear();
-            TriggerGlitchEffect();
+
+            StartCoroutine(PlayHardGlitch());
         }
     }
-    void TriggerGlitchEffect() { if (IsVisualClear() && Time.time >= lastGlitchTime + glitchCooldown) { StartCoroutine(PlayHardGlitch()); lastGlitchTime = Time.time; } }
+
+    void TriggerGlitchEffect()
+    {
+        if (CanSeePlayer() && Time.time >= lastGlitchTime + glitchCooldown)
+        {
+            StartCoroutine(PlayHardGlitch());
+            lastGlitchTime = Time.time;
+        }
+    }
 
     void AddVisitLevel(Vector3 pos)
     {

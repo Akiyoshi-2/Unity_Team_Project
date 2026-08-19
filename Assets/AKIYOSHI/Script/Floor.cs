@@ -122,12 +122,6 @@ public class Floor : MonoBehaviour
                 // ヒエラルキーが散らからないようにこのオブジェクトの子にする
                 obj.transform.SetParent(this.transform);
 
-                // デバッグログ
-                Transform floorChild = obj.transform.Find("Floor");
-                if (floorChild != null)
-                {
-                    Debug.Log($"Floor {x},{z} position: {floorChild.localPosition}");
-                }
             }
         }
     }

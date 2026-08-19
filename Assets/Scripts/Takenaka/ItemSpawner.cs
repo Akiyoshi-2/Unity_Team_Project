@@ -54,6 +54,5 @@ public class ItemSpawner : MonoBehaviour
         int randomIndex = Random.Range(0, itemPrefabs.Count);
         GameObject selectedPrefab = itemPrefabs[randomIndex];
         Instantiate(selectedPrefab, transform.position, transform.rotation);
-        Debug.Log($"{selectedPrefab.name} をスポーンしました！");
     }
 }

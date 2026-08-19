@@ -27,8 +27,6 @@ public class EnemySpawnPoint : MonoBehaviour
         // 2. 詳細なログを出力
         // 自身のオブジェクト名、フルパス、インスタンスIDを表示
         string fullPath = GetGameObjectPath(gameObject);
-        Debug.Log($"<color=cyan>【スポーン報告】</color> 名前: {gameObject.name}, パス: {fullPath}, ID: {gameObject.GetInstanceID()}", gameObject);
-
         Vector3 spawnPos = new Vector3(
             Mathf.Round(transform.position.x / gridSize) * gridSize,
             transform.position.y,
