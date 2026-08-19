@@ -83,4 +83,28 @@ public class SoundManager : MonoBehaviour
     {
         m_BGMSource.Stop();
     }
+
+    public void FadeOutBGM(float duration)
+    {
+        StartCoroutine(FadeOutBGMCoro(duration));
+    }
+
+    private System.Collections.IEnumerator FadeOutBGMCoro(float duration)
+    {
+        float startVolume = m_BGMSource.volume;
+        float timer = 0f;
+
+        while (timer < duration)
+        {
+            timer += Time.deltaTime;
+
+            float volume = Mathf.Lerp(startVolume, 0f, timer / duration);
+            m_BGMSource.volume = volume;
+
+            yield return null;
+        }
+
+        m_BGMSource.volume = 0f;
+        m_BGMSource.Stop();
+    }
 }

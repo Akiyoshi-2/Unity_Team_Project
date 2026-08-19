@@ -263,8 +263,108 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 26450cd0974cb39479092348043c891c, type: 3}
       insertIndex: 0
       addedObject: {fileID: 637282491076421214}
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 26450cd0974cb39479092348043c891c, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1511316554147639420}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 26450cd0974cb39479092348043c891c, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -4400926534754220313}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 26450cd0974cb39479092348043c891c, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -4005393333847158218}
   m_SourcePrefab: {fileID: 100100000, guid: 26450cd0974cb39479092348043c891c, type: 3}
+--- !u!1 &222192553951810800 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 26450cd0974cb39479092348043c891c, type: 3}
+  m_PrefabInstance: {fileID: 1140548849476430241}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1511316554147639420
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 222192553951810800}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8381697643b87034ba056a17be462d73, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyNose
+  moveSpeed: 3
+  chaseSpeed: 5
+  rotationSpeed: 15
+  gridSize: 2
+  turnProbability: 0.4
+  minStraightSteps: 2
+  floatAmplitude: 0.25
+  floatSpeed: 3
+  detectionRange: 35
+  killRange: 2
+  fovAngle: 360
+  searchWaitTime: 2
+  doorBreakTime: 2
+  doorBreakRadius: 1.25
+  doorCheckOffset: {x: 0, y: 1, z: 0.8}
+  playerTag: Player
+  warpPointTag: Warp Point
+  wallLayer:
+    serializedVersion: 2
+    m_Bits: 8
+  wallByEnemyLayer:
+    serializedVersion: 2
+    m_Bits: 192
+  showVisitLevels: 1
+  useLevelLoopWarp: 1
+  warpThreshold: 5
+  useTimeStuckWarp: 1
+  stuckWarpTime: 10
+  volume: {fileID: 0}
+  glitchDuration: 0.3
+  shakeIntensity: 0.5
+  stretchIntensity: 2
+  glitchCooldown: 5
+--- !u!136 &-4400926534754220313
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 222192553951810800}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Radius: 3.5
+  m_Height: 5
+  m_Direction: 1
+  m_Center: {x: 0, y: 2.5, z: 0}
+--- !u!114 &-4005393333847158218
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 222192553951810800}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Outline
+  outlineMode: 2
+  outlineColor: {r: 1, g: 1, b: 1, a: 1}
+  outlineWidth: 2
+  precomputeOutline: 0
+  bakeKeys: []
+  bakeValues: []
 --- !u!4 &603115524439182922 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 26450cd0974cb39479092348043c891c, type: 3}
