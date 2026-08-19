@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class NewMonoBehaviourScript : MonoBehaviour
+public class ResetGame : MonoBehaviour
 {
     public void ResetData()
     {

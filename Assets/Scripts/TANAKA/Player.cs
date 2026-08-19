@@ -88,6 +88,8 @@ public class Player : MonoBehaviour
     private Transform door = null;
     #endregion
 
+    private GOVManager m_GOVManager;
+
     #region èâä˙âª
     private void Awake() => Instance = this;
 
@@ -95,6 +97,8 @@ public class Player : MonoBehaviour
     {
         if (volume != null) volume.profile.TryGetSettings(out bloom);
         headBob_.Setup(m_Camera, 1.0f);
+
+        m_GOVManager = FindFirstObjectByType<GOVManager>();
 
         footstepSource = gameObject.AddComponent<AudioSource>();
         footstepSource.loop = true;
@@ -119,7 +123,6 @@ public class Player : MonoBehaviour
     #region çXêVèàóù (Update)
     private void Update()
     {
-        Cursor.lockState = CursorLockMode.Locked;
         Vector3 moveXZ = Vector3.zero;
         float moveY = rb.linearVelocity.y;
 

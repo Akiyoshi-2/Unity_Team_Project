@@ -4,10 +4,20 @@ public class GOVManager : MonoBehaviour
 {
     private void Start()
     {
-        // マウスカーソルを表示
-        Cursor.visible = true;
+        LockCursor();
+    }
 
-        // マウスカーソルのロックを解除
+    // カーソルをロック
+    public void LockCursor()
+    {
+        Cursor.visible = false;
+        Cursor.lockState = CursorLockMode.Locked;
+    }
+
+    // カーソルのロックを解除
+    public void UnlockCursor()
+    {
+        Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
     }
 }
