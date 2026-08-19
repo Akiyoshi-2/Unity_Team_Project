@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 546678222806689721}
   - component: {fileID: 3770018024847936296}
+  - component: {fileID: 2100715290279027442}
   m_Layer: 0
   m_Name: ItemSpawn
   m_TagString: Untagged
@@ -53,6 +54,25 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 0.01, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &2100715290279027442
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3037965748514400048}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 35a1c577ae1bcfe4e82618f220460ba0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ItemSpawner
+  itemPrefabs:
+  - {fileID: 7000030823768592410, guid: e28f7d40095e4134e89b4c902b42f3db, type: 3}
+  - {fileID: 142641117865456482, guid: a2efcd0be40b59647a8561cd67a564dd, type: 3}
+  - {fileID: 6666251156526456618, guid: 805f4466835b1044b895457404e58f85, type: 3}
+  - {fileID: 3671876730944914743, guid: 6574d71889b383b40bdeba34c54b70e2, type: 3}
+  - {fileID: 7301756143149759899, guid: b5214dc38fdc918499920ec9319c6eac, type: 3}
+  - {fileID: 1943250804645394624, guid: 999fafbbc7a4a454baceab6e6262accc, type: 3}
 --- !u!1001 &5749297365908458092
 PrefabInstance:
   m_ObjectHideFlags: 0
