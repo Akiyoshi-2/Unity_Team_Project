@@ -148,7 +148,19 @@ public class Player : MonoBehaviour
     [SerializeField]
     private AudioClip runClip;
 
+    [SerializeField, Range(0f, 1f)]
+    private float footstepVolume = 1.0f;
+
     private AudioSource footstepSource;
+
+    [Header("アイテム取得音")]
+    [SerializeField]
+    private AudioClip itemGetClip;
+
+    [SerializeField, Range(0f, 1f)]
+    private float itemGetVolume = 1.0f;
+
+    private AudioSource itemGetSource;
 
     private bool flashEnemyChecked = false;
 
@@ -166,6 +178,13 @@ public class Player : MonoBehaviour
         footstepSource.loop = true;
         footstepSource.playOnAwake = false;
         footstepSource.spatialBlend = 1f;
+        footstepSource.volume = footstepVolume;
+
+        // アイテム取得音用
+        itemGetSource = gameObject.AddComponent<AudioSource>();
+        itemGetSource.playOnAwake = false;
+        itemGetSource.spatialBlend = 0f;
+        itemGetSource.volume = itemGetVolume;
 
         // シーン内のEnemyをすべて取得
         enemyObjects = GameObject.FindGameObjectsWithTag("Enemy");
@@ -242,6 +261,9 @@ public class Player : MonoBehaviour
                 if (hit && raycastHit.collider.tag == "item" && (item1Stock == 0 || item2Stock == 0 || item3Stock == 0))
                 {
                     raycastHit.collider.gameObject.SetActive(false);
+
+                    // アイテム取得音
+                    itemGetSource.PlayOneShot(itemGetClip);
 
                     if (raycastHit.collider.name == "御札" || raycastHit.collider.name == "御札(Clone)")
                     {

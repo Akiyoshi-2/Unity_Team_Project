@@ -62,13 +62,20 @@ public class SoundManager : MonoBehaviour
             }
         }
     }
-
     public void PlayBGM(BGMType type)
     {
         int index = (int)type;
         if (index < 0 || index >= m_BGMClips.Length) return;
 
         m_BGMSource.clip = m_BGMClips[index];
+        m_BGMSource.Play();
+    }
+
+    public void PlayBGM(AudioClip clip)
+    {
+        if (clip == null) return;
+
+        m_BGMSource.clip = clip;
         m_BGMSource.Play();
     }
 
