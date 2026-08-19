@@ -1,4 +1,5 @@
 using System;
+using System.Collections; // コルーチンに必要
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering.PostProcessing;
@@ -43,7 +44,8 @@ public class Player : MonoBehaviour
     [Header("アイテム設定")]
     [SerializeField] private float staminamTime = 10;
     [SerializeField] private float ohudaTime = 10;
-    [SerializeField] private float flashLightTime = 10;
+    [SerializeField] private float flashRange = 20f;         // フラッシュの有効距離
+    [SerializeField] private float flashStunDuration = 10f; // 敵が止まる時間
     [SerializeField] private GameObject flashStone;
 
     private int item1Stock = 0, item2Stock = 0, item3Stock = 0;
@@ -54,19 +56,15 @@ public class Player : MonoBehaviour
     private float outlineTimer = 0;
     private bool staminam = false;
     private float staminamTimer = 0;
-    private bool flashLight = false;
-    private float flashLightTimer = 0;
 
     [NonSerialized] public bool clockFlg = false;
-    private Vector3 clockPos = Vector3.zero;
+    [NonSerialized] public Vector3 clockPos = Vector3.zero;
     private bool getCompass = false;
     private bool GoalItemFlg = false;
     #endregion
 
     #region 変数定義 - 演出・敵・ギミック
     [SerializeField] private PostProcessVolume volume;
-    private Bloom bloom;
-    private int flashFlg = 0;
 
     private Enemy[] m_Enemies;
     private Vector3 camera_m, player_m;
@@ -83,6 +81,9 @@ public class Player : MonoBehaviour
     private Vector3 posSave = Vector3.zero;
     private float dirStop;
 
+    [Header("時計アイテム設定")]
+    [SerializeField] private GameObject clockPrefab; // 作成した時計プレハブ
+
     // ドア操作用
     private int doorFlg = 0;
     private Transform door = null;
@@ -95,9 +96,7 @@ public class Player : MonoBehaviour
 
     private void Start()
     {
-        if (volume != null) volume.profile.TryGetSettings(out bloom);
         headBob_.Setup(m_Camera, 1.0f);
-
         m_GOVManager = FindFirstObjectByType<GOVManager>();
 
         footstepSource = gameObject.AddComponent<AudioSource>();
@@ -129,16 +128,15 @@ public class Player : MonoBehaviour
         if (!tagChange)
         {
             HandleInputMovement(ref moveXZ);
-            HandleInteraction();     // Fキーの判定
-            HandleInventoryInput();  // 1,2,3キー
-            HandleSpeedAndSquat();   // 速度・しゃがみ
+            HandleInteraction();
+            HandleInventoryInput();
+            HandleSpeedAndSquat();
         }
         else
         {
             if (Input.GetKeyDown(KeyCode.F)) ExitHideout();
         }
 
-        // --- ドアのアニメーションを毎フレーム更新 ---
         UpdateDoorAnimation();
 
         if (Input.GetKeyDown(KeyCode.E)) TogglePlayerLight();
@@ -178,15 +176,20 @@ public class Player : MonoBehaviour
         float mx = Input.GetAxis("Mouse X") * m_RotationSpeed;
         float my = Input.GetAxis("Mouse Y") * m_RotationSpeed;
 
-        if (!tagChange)
+        if (!tagChange) // 通常時
         {
             player_m = new Vector3(0, transform.localEulerAngles.y + mx, 0);
             camera_m.x = Mathf.Clamp(camera_m.x - my, -80f, 80f);
         }
-        else
+        else // 隠れている時
         {
             player_m.y = Mathf.Clamp(player_m.y + mx, dirStop - 30, dirStop + 30);
-            camera_m.x = Mathf.Clamp(camera_m.x - my, -30f, 20f);
+
+            // --- 修正箇所 ---
+            // 第2引数（最小値）を -30f から 0f に変更すると、水平より上を向けなくなります。
+            // 少しだけ下を向かせたい場合は 5f や 10f にしてください。
+            camera_m.x = Mathf.Clamp(camera_m.x - my, 0f, 20f);
+            // ----------------
         }
         transform.localEulerAngles = player_m;
         m_Camera.transform.localEulerAngles = new Vector3(camera_m.x, 0, 0);
@@ -223,30 +226,29 @@ public class Player : MonoBehaviour
             doorFlg = (door.localPosition.z == 0.75) ? 3 : 4;
     }
 
-    // ドアを実際に動かすロジック
     private void UpdateDoorAnimation()
     {
         if (door == null || doorFlg == 0) return;
 
         if (doorFlg == 1)
-        { // 回転ドア開
+        {
             door.GetComponent<Collider>().isTrigger = true;
             door.transform.localEulerAngles += new Vector3(0, 220 * Time.deltaTime, 0);
             if (door.localEulerAngles.y >= 110) { door.localEulerAngles = new Vector3(0, 110, 0); door.GetComponent<Collider>().isTrigger = false; doorFlg = 0; }
         }
         else if (doorFlg == 2)
-        { // 回転ドア閉
+        {
             door.GetComponent<Collider>().isTrigger = true;
             door.transform.localEulerAngles -= new Vector3(0, 220 * Time.deltaTime, 0);
             if (door.localEulerAngles.y <= 0 || door.localEulerAngles.y >= 150) { door.localEulerAngles = new Vector3(0, 0, 0); door.GetComponent<Collider>().isTrigger = false; doorFlg = 0; }
         }
         else if (doorFlg == 3)
-        { // スライドドア閉
+        {
             door.localPosition -= new Vector3(0, 0, 3.0f * Time.deltaTime);
             if (door.localPosition.z <= -0.75f) { door.localPosition = new Vector3(door.localPosition.x, door.localPosition.y, -0.75f); doorFlg = 0; }
         }
         else if (doorFlg == 4)
-        { // スライドドア開
+        {
             door.localPosition += new Vector3(0, 0, 3.0f * Time.deltaTime);
             if (door.localPosition.z >= 0.75f) { door.localPosition = new Vector3(door.localPosition.x, door.localPosition.y, 0.75f); doorFlg = 0; }
         }
@@ -281,10 +283,46 @@ public class Player : MonoBehaviour
         {
             case 1: enemyOutline = true; outlineTimer = 0; break;
             case 2: staminam = true; staminamTimer = 0; break;
-            case 3: flashLight = true; flashFlg = 0; flashLightTimer = 0; break;
-            case 4: clockFlg = true; clockPos = transform.position; break;
+            case 3: ExecuteFlashEffect(); break;
+            case 4:
+                if (clockPrefab != null)
+                {
+                    // プレイヤーの 1.2m 前方の座標を計算
+                    Vector3 spawnPos = transform.position + transform.forward * 1.2f;
+                    // 高さをプレイヤーの足元付近に合わせる（微調整してください）
+                    spawnPos.y = transform.position.y - 0.9f;
+
+                    Instantiate(clockPrefab, spawnPos, Quaternion.identity);
+                }
+                break;
             case 5: Instantiate(flashStone, transform.position + Vector3.up * -0.98f, Quaternion.identity); break;
         }
+    }
+
+    private void ExecuteFlashEffect()
+    {
+        // 重要：使用する瞬間にシーン内の最新の敵リストを取得する
+        UpdateEnemyList();
+
+        foreach (Enemy enemy in m_Enemies)
+        {
+            if (enemy != null)
+            {
+                float dist = Vector3.Distance(transform.position, enemy.transform.position);
+
+                if (dist <= flashRange)
+                {
+                    StartCoroutine(StunEnemyRoutine(enemy));
+                }
+            }
+        }
+    }
+
+    private IEnumerator StunEnemyRoutine(Enemy enemy)
+    {
+        enemy.flashLightHit = true; // Enemy.cs側の移動停止・当たり判定消失
+        yield return new WaitForSeconds(flashStunDuration);
+        if (enemy != null) enemy.flashLightHit = false; // 復帰
     }
 
     private void UpdateItemEffects()
@@ -298,36 +336,34 @@ public class Player : MonoBehaviour
             if (staminamTimer > staminamTime) staminam = false;
         }
 
-        if (flashLight)
-        {
-            flashLightTimer += Time.deltaTime;
-            HandleFlashBloomVisuals();
-            foreach (Enemy e in m_Enemies) if (e != null && Vector3.Distance(transform.position, e.transform.position) <= 20f) e.flashLightHit = true;
-            if (flashLightTimer > flashLightTime) { foreach (Enemy e in m_Enemies) if (e != null) e.flashLightHit = false; flashLight = false; }
-        }
-
         if (!staminam && !run && stamina < 10.0f)
         {
             stamina += Time.deltaTime * 10 / staminaHealTime;
             if (stamina >= 10.0f) { stamina = 10.0f; staminaOut = false; }
         }
     }
-
-    private void HandleFlashBloomVisuals()
-    {
-        if (bloom == null) return;
-        if (flashFlg == 0) { bloom.enabled.value = true; bloom.intensity.value += Time.deltaTime * 50; if (bloom.intensity.value > 50) flashFlg = 1; }
-        else if (flashFlg == 1) { bloom.intensity.value -= Time.deltaTime * 50; if (bloom.intensity.value < 0) { bloom.intensity.value = 0; bloom.enabled.value = false; flashFlg = 2; } }
-    }
     #endregion
 
     #region 隠れる・しゃがみ
     private void EnterHideout(RaycastHit hit)
     {
-        posSave = transform.position; transform.localScale = Vector3.zero; GetComponent<CapsuleCollider>().isTrigger = true;
+        posSave = transform.position;
+        transform.localScale = Vector3.zero;
+        GetComponent<CapsuleCollider>().isTrigger = true;
+
+        // 位置の調整
         transform.position = hit.transform.position + Vector3.up * 0.53f + Vector3.left * 0.15f;
-        dirStop = hit.transform.localEulerAngles.y + 90; rb.useGravity = false; tagChange = true;
-        m_Camera.transform.localEulerAngles += new Vector3(0f, 180f, 0f); m_Camera.fieldOfView = 30f;
+
+        dirStop = hit.transform.localEulerAngles.y - 90; // もし逆なら +90 を -90 にするか、+270にする
+
+        // 現在のプレイヤーの向きを、隠れ場所の正面に合わせる
+        player_m = new Vector3(0, dirStop, 0);
+        transform.localEulerAngles = player_m;
+
+        rb.useGravity = false;
+        tagChange = true;
+
+        m_Camera.fieldOfView = 30f;
     }
 
     private void ExitHideout()

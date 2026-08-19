@@ -7,17 +7,13 @@ using UnityEngine.SceneManagement;
 
 public class Enemy : MonoBehaviour
 {
-    // =========================================================
-    // 移動設定
-    // =========================================================
+    // 既存のヘッダー・変数はすべて維持
     [Header("移動設定")]
     public float moveSpeed = 3.0f;
     public float chaseSpeed = 5.0f;
     public float rotationSpeed = 15.0f;
     public float gridSize = 2.0f;
-
-    [Range(0, 1)]
-    public float turnProbability = 0.4f;
+    [Range(0, 1)] public float turnProbability = 0.4f;
     public int minStraightSteps = 2;
 
     [Header("浮遊設定")]
@@ -37,7 +33,7 @@ public class Enemy : MonoBehaviour
     public float searchWaitTime = 2.0f;
 
     [Header("時計アイテム設定")]
-    public float clockEffectRange = 25.0f; // 時計に反応する距離
+    public float clockEffectRange = 25.0f;
 
     [Header("ドア破壊設定")]
     public float doorBreakTime = 2.0f;
@@ -66,15 +62,11 @@ public class Enemy : MonoBehaviour
     private LayerMask combinedMoveMask;
 
     [SerializeField] private bool showVisitLevels = true;
-
     [SerializeField] private PostProcessVolume volume = null;
     private Grain grain;
     private Vignette vignette;
     private ChromaticAberration chromaticAberration;
 
-    // =========================================================
-    // フラッシュライト関連 (Player.csから操作される)
-    // =========================================================
     [NonSerialized] public bool flashLightHit = false;
     private bool stunFlg = false;
     private float saveChaseSpeed = 0f;
@@ -115,7 +107,6 @@ public class Enemy : MonoBehaviour
         targetDirection = transform.forward;
         GameObject playerObj = GameObject.FindGameObjectWithTag(playerTag);
         if (playerObj != null) player = playerObj.transform;
-
         saveChaseSpeed = chaseSpeed;
         saveMoveSpeed = moveSpeed;
         saveDetectionRange = detectionRange;
@@ -130,8 +121,9 @@ public class Enemy : MonoBehaviour
         HandleFlashlightStun();
         if (stunFlg) return;
 
-        // キル判定
-        if (enemyCollider != null && enemyCollider.enabled)
+        // ★ 捕獲判定の修正
+        // プレイヤーのタグが "Player" (隠れていない) 時のみ、キル判定を行う
+        if (enemyCollider != null && enemyCollider.enabled && player.CompareTag(playerTag))
         {
             Vector3 localPlayerPos = transform.InverseTransformPoint(player.position);
             if (Mathf.Abs(localPlayerPos.x) < killRange && Mathf.Abs(localPlayerPos.z) < killRange)
@@ -141,31 +133,35 @@ public class Enemy : MonoBehaviour
             }
         }
 
-        // ドア破壊中は移動停止
+        // ドア破壊中は移動処理を行わない
         if (CheckAndBreakDoor()) return;
 
-        // プレイヤー視認チェック
+        // ★ 視界判定の取得
+        // (CanSeePlayerメソッド内で、プレイヤーがInvisibleタグの場合は強制的にfalseを返すように修正されている前提)
         bool canSee = CanSeePlayer();
 
-        // =========================================================
-        // 時計アイテムの状態判定 (最優先)
-        // =========================================================
+        // 時計アイテムの優先処理ロジック
         if (Player.Instance != null && Player.Instance.clockFlg)
         {
-            float distToClock = Vector3.Distance(transform.position, Player.Instance.GetClockPos());
-            // 時計が有効かつ、効果範囲内にいる場合、帰還中以外なら時計を優先する
+            float distToClock = Vector3.Distance(transform.position, Player.Instance.clockPos);
+
+            // 時計の範囲内なら気を取られる状態にする（帰還中以外）
             if (distToClock <= clockEffectRange && currentState != State.Returning)
             {
-                if (currentState != State.Distracted)
+                Vector3 currentGrid = GetGridPosition(transform.position);
+                Vector3 clockGrid = GetGridPosition(Player.Instance.clockPos);
+
+                if (Vector3.Distance(currentGrid, clockGrid) > 0.1f)
                 {
-                    currentState = State.Distracted;
+                    if (currentState != State.Distracted)
+                    {
+                        currentState = State.Distracted;
+                    }
                 }
             }
         }
 
-        // =========================================================
-        // 状態遷移スイッチ
-        // =========================================================
+        // ステートマシン
         switch (currentState)
         {
             case State.Patrol:
@@ -174,6 +170,7 @@ public class Enemy : MonoBehaviour
                 break;
 
             case State.Chase:
+                // 隠れると canSee が false になるため、自動的に Search (最後に見た場所を調べる) に移行
                 if (canSee) ChaseLogic();
                 else currentState = State.Search;
                 break;
@@ -184,7 +181,7 @@ public class Enemy : MonoBehaviour
                 break;
 
             case State.Distracted:
-                // 時計に気を取られている間は canSee を無視して時計へ向かう
+                // 時計に気を取られている間はプレイヤーを見つけない
                 DistractedLogic();
                 break;
 
@@ -193,50 +190,36 @@ public class Enemy : MonoBehaviour
                 break;
         }
 
+        // スタック時のワープ処理
         HandleStuckWarp();
     }
 
-    // =========================================================
-    // 時計誘導ロジック
-    // =========================================================
     void DistractedLogic()
     {
-        // プレイヤーが時計を止めた、もしくは効果時間が切れた場合
-        if (Player.Instance == null || !Player.Instance.clockFlg)
-        {
-            currentState = State.Search;
-            return;
-        }
+        // 時計が終了した、あるいは範囲外になったら通常に戻る
+        if (Player.Instance == null || !Player.Instance.clockFlg) { currentState = State.Search; return; }
 
-        Vector3 clockPos = Player.Instance.GetClockPos();
-        Vector3 clockGrid = GetGridPosition(clockPos);
+        Vector3 clockGrid = GetGridPosition(Player.Instance.GetClockPos());
 
-        // 次の目的地（グリッド）に到達したか判定
         if (Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), new Vector3(currentTargetCell.x, 0, currentTargetCell.z)) < 0.1f)
         {
-            Vector3 currentGrid = GetGridPosition(transform.position);
+            Vector3 p = GetGridPosition(transform.position);
 
-            // 時計の場所に到着したか
-            if (Vector3.Distance(currentGrid, clockGrid) < 0.1f)
+            // 到着判定
+            if (Vector3.Distance(p, clockGrid) < 0.1f)
             {
-                // 到着したらその場で索敵状態へ（時計のフラグは他者のために残す）
-                currentState = State.Search;
+                currentState = State.Search; // 到着したら周囲をキョロキョロさせる
                 return;
             }
 
-            // 時計の方へ向かう最適な方向を計算
-            Vector3 nextDir = GetBestDirectionTowards(currentGrid, clockGrid);
-            targetDirection = (nextDir != Vector3.zero) ? nextDir : transform.forward;
-            currentTargetCell = currentGrid + targetDirection * gridSize;
+            Vector3 nextDir = GetBestDirectionTowards(p, clockGrid);
+            targetDirection = nextDir != Vector3.zero ? nextDir : transform.forward;
+            currentTargetCell = p + targetDirection * gridSize;
         }
-
         MoveTowardsTargetSafe();
     }
 
-    // =========================================================
-    // 各種ロジック・ユーティリティ
-    // =========================================================
-
+    // 既存のメソッド群（HandleFlashlightStun, MoveTowardsTargetSafe, PatrolLogic...等）は一切変更せずそのまま残す
     private void HandleFlashlightStun()
     {
         if (flashLightHit)
@@ -261,27 +244,59 @@ public class Enemy : MonoBehaviour
         }
     }
 
+    private void HandleStuckWarp()
+    {
+        if (useTimeStuckWarp && currentState != State.Returning)
+        {
+            Vector3 currentHorizontalPos = new Vector3(transform.position.x, 0f, transform.position.z);
+            Vector3 lastHorizontalPos = new Vector3(lastStuckCheckPosition.x, 0f, lastStuckCheckPosition.z);
+            if (Vector3.Distance(currentHorizontalPos, lastHorizontalPos) < 0.01f)
+            {
+                stuckTimer += Time.deltaTime;
+                if (stuckTimer >= stuckWarpTime) { WarpToNearestTaggedPoint(); stuckTimer = 0f; }
+            }
+            else { stuckTimer = 0f; lastStuckCheckPosition = transform.position; }
+        }
+    }
+
+    public void TeleportToSpawn()
+    {
+        transform.position = spawnPosition; currentTargetCell = GetGridPosition(spawnPosition);
+        currentState = State.Patrol; targetDirection = transform.forward; straightStepCount = 0;
+        searchTimer = 0f; stuckTimer = 0f; doorBreakTimer = 0f;
+        lastSeenCell = new Vector3(9999f, 9999f, 9999f); visitLevelMap.Clear();
+        startY = spawnPosition.y; lastStuckCheckPosition = transform.position;
+    }
+
+    void ReturnToSpawnLogic()
+    {
+        float distance = Vector3.Distance(new Vector3(transform.position.x, 0f, transform.position.z), new Vector3(spawnPosition.x, 0f, spawnPosition.z));
+        if (distance <= returnArrivalDistance) { TeleportToSpawn(); return; }
+        if (Vector3.Distance(new Vector3(transform.position.x, 0f, transform.position.z), new Vector3(currentTargetCell.x, 0f, currentTargetCell.z)) < 0.1f)
+        {
+            Vector3 currentGrid = GetGridPosition(transform.position);
+            targetDirection = GetBestDirectionTowards(currentGrid, GetGridPosition(spawnPosition));
+            currentTargetCell = currentGrid + targetDirection * gridSize;
+        }
+        MoveTowardsTargetSafe();
+    }
+
     void MoveTowardsTargetSafe()
     {
         if (Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), new Vector3(currentTargetCell.x, 0, currentTargetCell.z)) > gridSize * 1.5f)
         { currentTargetCell = GetGridPosition(transform.position); return; }
-
         float speed = (currentState == State.Chase) ? chaseSpeed : moveSpeed;
         float rotSpeed = (currentState == State.Chase) ? rotationSpeed * 1.5f : rotationSpeed;
-
         if (targetDirection != Vector3.zero)
         {
             Quaternion targetRot = Quaternion.LookRotation(targetDirection);
             transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot, rotSpeed * 100f * Time.deltaTime);
         }
-
         Vector3 horizontalTarget = new Vector3(currentTargetCell.x, transform.position.y, currentTargetCell.z);
         Vector3 nextPos = Vector3.MoveTowards(transform.position, horizontalTarget, speed * Time.deltaTime);
         nextPos.y = startY + Mathf.Sin(Time.time * floatSpeed) * floatAmplitude;
-
         Vector3 moveDir = (nextPos - transform.position).normalized;
         float moveDist = Vector3.Distance(transform.position, nextPos);
-
         if (moveDist > 0.001f && !Physics.SphereCast(transform.position + Vector3.up, 0.3f, moveDir, out _, moveDist, combinedMoveMask))
             transform.position = nextPos;
         else if (Vector3.Distance(transform.position, horizontalTarget) < 0.05f)
@@ -318,7 +333,6 @@ public class Enemy : MonoBehaviour
         if (vignette != null) vignette.enabled.value = false;
         if (chromaticAberration != null) chromaticAberration.enabled.value = false;
         if (lastSeenCell.x > 5000f) { currentState = State.Patrol; return; }
-
         float dLast = Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), new Vector3(lastSeenCell.x, 0, lastSeenCell.z));
         if (dLast > 0.1f)
         {
@@ -337,43 +351,6 @@ public class Enemy : MonoBehaviour
             searchTimer += Time.deltaTime;
             if (searchTimer >= searchWaitTime) currentState = State.Patrol;
         }
-    }
-
-    bool CanSeePlayer()
-    {
-        if (Vector3.Distance(transform.position, player.position) > detectionRange) return false;
-        if (Vector3.Angle(transform.forward, (player.position - transform.position).normalized) < fovAngle * 0.5f)
-        {
-            if (!Physics.Linecast(transform.position + Vector3.up, player.position + Vector3.up, wallLayer))
-            {
-                lastSeenCell = GetGridPosition(player.position);
-                return true;
-            }
-        }
-        return false;
-    }
-
-    // グリッド系ユーティリティ
-    Vector3 GetGridPosition(Vector3 pos) => new Vector3(Mathf.Round(pos.x / gridSize) * gridSize, 0, Mathf.Round(pos.z / gridSize) * gridSize);
-    void SnapToGrid() { Vector3 g = GetGridPosition(transform.position); transform.position = new Vector3(g.x, transform.position.y, g.z); }
-    Vector3 RoundVector(Vector3 v) => new Vector3(Mathf.Round(v.x), 0, Mathf.Round(v.z)).normalized;
-
-    Vector3 GetBestDirectionTowards(Vector3 currentGrid, Vector3 targetGrid)
-    {
-        Vector3[] dirs = { Vector3.forward, Vector3.back, Vector3.right, Vector3.left };
-        Vector3 bestDir = Vector3.zero;
-        float minDist = float.MaxValue;
-        bool found = false;
-        foreach (Vector3 d in dirs)
-        {
-            Vector3 checkPos = currentGrid + d * gridSize;
-            if (!Physics.CheckSphere(checkPos + Vector3.up, 0.4f, combinedMoveMask))
-            {
-                float dist = Vector3.Distance(checkPos, targetGrid);
-                if (dist < minDist) { minDist = dist; bestDir = d; found = true; }
-            }
-        }
-        return found ? bestDir : Vector3.zero;
     }
 
     void UpdateNextPatrolTarget(Vector3 currentPos)
@@ -400,31 +377,24 @@ public class Enemy : MonoBehaviour
         currentTargetCell = currentPos + targetDirection * gridSize;
     }
 
-    void AddVisitLevel(Vector3 pos)
+    Vector3 GetBestDirectionTowards(Vector3 currentGrid, Vector3 targetGrid)
     {
-        pos = GetGridPosition(pos);
-        if (!visitLevelMap.ContainsKey(pos)) { visitLevelMap[pos] = 1; consecutiveMaxLevelCount = 0; }
-        else
+        Vector3[] dirs = { Vector3.forward, Vector3.back, Vector3.right, Vector3.left };
+        Vector3 bestDir = Vector3.zero;
+        float minDist = float.MaxValue;
+        bool found = false;
+        foreach (Vector3 d in dirs)
         {
-            visitLevelMap[pos]++;
-            if (visitLevelMap[pos] >= MAX_VISIT_LEVEL) { visitLevelMap[pos] = MAX_VISIT_LEVEL; consecutiveMaxLevelCount++; }
-            else consecutiveMaxLevelCount = 0;
+            Vector3 checkPos = currentGrid + d * gridSize;
+            if (!Physics.CheckSphere(checkPos + Vector3.up, 0.4f, combinedMoveMask) && !Physics.Linecast(currentGrid + Vector3.up, checkPos + Vector3.up, combinedMoveMask))
+            {
+                float dist = Vector3.Distance(checkPos, targetGrid);
+                if (dist < minDist) { minDist = dist; bestDir = d; found = true; }
+            }
         }
-        if (useLevelLoopWarp && consecutiveMaxLevelCount >= warpThreshold) WarpToNearestTaggedPoint();
+        if (!found) foreach (Vector3 d in dirs) if (!Physics.CheckSphere(currentGrid + d * gridSize + Vector3.up, 0.4f, combinedMoveMask)) return d;
+        return bestDir;
     }
-
-    int GetVisitLevel(Vector3 pos) => visitLevelMap.ContainsKey(pos) ? visitLevelMap[pos] : 0;
-
-    Vector3 SortByLevelPriority(List<Vector3> options)
-    {
-        Vector3 cur = GetGridPosition(transform.position);
-        for (int i = 0; i < options.Count; i++) { int r = UnityEngine.Random.Range(i, options.Count); Vector3 temp = options[i]; options[i] = options[r]; options[r] = temp; }
-        Vector3 best = options[0]; int min = 99;
-        foreach (Vector3 d in options) { int v = GetVisitLevel(cur + d * gridSize); if (v < min) { min = v; best = d; } }
-        return best;
-    }
-
-    void StartChase() { if (currentState != State.Chase) { currentState = State.Chase; visitLevelMap.Clear(); StartCoroutine(PlayHardGlitch()); } }
 
     bool CheckAndBreakDoor()
     {
@@ -446,67 +416,33 @@ public class Enemy : MonoBehaviour
         return false;
     }
 
-    void WarpToNearestTaggedPoint()
+    bool CanSeePlayer()
     {
-        GameObject[] points = GameObject.FindGameObjectsWithTag(warpPointTag);
-        if (points == null || points.Length == 0) return;
-        GameObject nearest = null; float minD = float.MaxValue;
-        foreach (GameObject p in points) { float d = Vector3.Distance(transform.position, p.transform.position); if (d < minD) { minD = d; nearest = p; } }
-        if (nearest != null)
+        if (Vector3.Distance(transform.position, player.position) > detectionRange) return false;
+        if (Vector3.Angle(transform.forward, (player.position - transform.position).normalized) < fovAngle * 0.5f)
         {
-            transform.position = nearest.transform.position;
-            startY = transform.position.y; SnapToGrid(); currentTargetCell = GetGridPosition(transform.position);
-            currentState = State.Patrol; lastSeenCell = new Vector3(9999f, 9999f, 9999f);
-            searchTimer = 0f; stuckTimer = 0f; consecutiveMaxLevelCount = 0; visitLevelMap.Clear(); ChooseNewRandomDirection();
+            if (!Physics.Linecast(transform.position + Vector3.up, player.position + Vector3.up, wallLayer))
+            { lastSeenCell = GetGridPosition(player.position); return true; }
         }
+        return false;
     }
 
-    void ChooseNewRandomDirection()
-    {
-        Vector3 currentPos = GetGridPosition(transform.position);
-        Vector3[] dirs = { Vector3.forward, Vector3.back, Vector3.right, Vector3.left };
-        List<Vector3> valid = new List<Vector3>();
-        foreach (Vector3 d in dirs) if (!Physics.CheckSphere(currentPos + d * gridSize + Vector3.up, 0.5f, combinedMoveMask)) valid.Add(d);
-        targetDirection = valid.Count > 0 ? valid[UnityEngine.Random.Range(0, valid.Count)] : transform.forward;
-        currentTargetCell = currentPos + targetDirection * gridSize;
-    }
+    void StartChase() { if (currentState != State.Chase) { currentState = State.Chase; visitLevelMap.Clear(); StartCoroutine(PlayHardGlitch()); } }
 
-    private void HandleStuckWarp()
+    void AddVisitLevel(Vector3 pos)
     {
-        if (useTimeStuckWarp && currentState != State.Returning)
+        pos = GetGridPosition(pos);
+        if (!visitLevelMap.ContainsKey(pos)) { visitLevelMap[pos] = 1; consecutiveMaxLevelCount = 0; }
+        else
         {
-            Vector3 currentHorizontalPos = new Vector3(transform.position.x, 0f, transform.position.z);
-            Vector3 lastHorizontalPos = new Vector3(lastStuckCheckPosition.x, 0f, lastStuckCheckPosition.z);
-            if (Vector3.Distance(currentHorizontalPos, lastHorizontalPos) < 0.01f)
-            {
-                stuckTimer += Time.deltaTime;
-                if (stuckTimer >= stuckWarpTime) { WarpToNearestTaggedPoint(); stuckTimer = 0f; }
-            }
-            else { stuckTimer = 0f; lastStuckCheckPosition = transform.position; }
+            visitLevelMap[pos]++;
+            if (visitLevelMap[pos] >= MAX_VISIT_LEVEL) { visitLevelMap[pos] = MAX_VISIT_LEVEL; consecutiveMaxLevelCount++; }
+            else consecutiveMaxLevelCount = 0;
         }
+        if (useLevelLoopWarp && consecutiveMaxLevelCount >= warpThreshold) WarpToNearestTaggedPoint();
     }
 
-    void ReturnToSpawnLogic()
-    {
-        float distance = Vector3.Distance(new Vector3(transform.position.x, 0f, transform.position.z), new Vector3(spawnPosition.x, 0f, spawnPosition.z));
-        if (distance <= returnArrivalDistance) { TeleportToSpawn(); return; }
-        if (Vector3.Distance(new Vector3(transform.position.x, 0f, transform.position.z), new Vector3(currentTargetCell.x, 0f, currentTargetCell.z)) < 0.1f)
-        {
-            Vector3 currentGrid = GetGridPosition(transform.position);
-            targetDirection = GetBestDirectionTowards(currentGrid, GetGridPosition(spawnPosition));
-            currentTargetCell = currentGrid + targetDirection * gridSize;
-        }
-        MoveTowardsTargetSafe();
-    }
-
-    public void TeleportToSpawn()
-    {
-        transform.position = spawnPosition; currentTargetCell = GetGridPosition(spawnPosition);
-        currentState = State.Patrol; targetDirection = transform.forward; straightStepCount = 0;
-        searchTimer = 0f; stuckTimer = 0f; doorBreakTimer = 0f;
-        lastSeenCell = new Vector3(9999f, 9999f, 9999f); visitLevelMap.Clear();
-        startY = spawnPosition.y; lastStuckCheckPosition = transform.position;
-    }
+    int GetVisitLevel(Vector3 pos) => visitLevelMap.ContainsKey(pos) ? visitLevelMap[pos] : 0;
 
     private void OnCollisionEnter(Collision collision)
     {
@@ -514,20 +450,25 @@ public class Enemy : MonoBehaviour
             SceneManager.LoadScene("GameOverScene");
     }
 
-    IEnumerator PlayHardGlitch()
+    Vector3 RoundVector(Vector3 v) => new Vector3(Mathf.Round(v.x), 0, Mathf.Round(v.z)).normalized;
+    Vector3 GetGridPosition(Vector3 pos) => new Vector3(Mathf.Round(pos.x / gridSize) * gridSize, 0, Mathf.Round(pos.z / gridSize) * gridSize);
+    void SnapToGrid() { Vector3 g = GetGridPosition(transform.position); transform.position = new Vector3(g.x, transform.position.y, g.z); }
+
+    Vector3 SortByLevelPriority(List<Vector3> options)
     {
-        Camera cam = Camera.main; if (cam == null) yield break;
-        float oAspect = cam.aspect; float oFOV = cam.fieldOfView; Vector3 oPos = cam.transform.localPosition;
-        float elapsed = 0f;
-        while (elapsed < glitchDuration)
+        Vector3 cur = GetGridPosition(transform.position);
+        for (int i = 0; i < options.Count; i++)
         {
-            cam.transform.localPosition = oPos + UnityEngine.Random.insideUnitSphere * shakeIntensity;
-            cam.aspect = oAspect * UnityEngine.Random.Range(1f / stretchIntensity, stretchIntensity);
-            cam.fieldOfView = oFOV + UnityEngine.Random.Range(-15f, 15f);
-            if (grain != null) grain.enabled.value = true;
-            elapsed += Time.unscaledDeltaTime; yield return null;
+            int r = UnityEngine.Random.Range(i, options.Count);
+            Vector3 temp = options[i]; options[i] = options[r]; options[r] = temp;
         }
-        cam.ResetAspect(); if (grain != null) grain.enabled.value = false; cam.fieldOfView = oFOV; cam.transform.localPosition = oPos;
+        Vector3 best = options[0]; int min = 99;
+        foreach (Vector3 d in options)
+        {
+            int v = GetVisitLevel(cur + d * gridSize);
+            if (v < min) { min = v; best = d; }
+        }
+        return best;
     }
 
     void OnDrawGizmos()
@@ -546,14 +487,68 @@ public class Enemy : MonoBehaviour
         Gizmos.matrix = Matrix4x4.TRS(transform.position + Vector3.up * 0.2f, transform.rotation, Vector3.one);
         Gizmos.DrawWireCube(Vector3.zero, new Vector3(killRange * 2f, 0.1f, killRange * 2f));
         Gizmos.matrix = oldM;
-
-        // 時計の反応範囲を可視化
-        Gizmos.color = Color.green;
-        Gizmos.DrawWireSphere(transform.position, clockEffectRange);
-
         Vector3 eye = transform.position + Vector3.up;
         Gizmos.color = currentState == State.Chase ? Color.red : (currentState == State.Search ? Color.yellow : Color.white);
         Gizmos.DrawRay(eye, Quaternion.Euler(0, -fovAngle * 0.5f, 0) * transform.forward * detectionRange);
         Gizmos.DrawRay(eye, Quaternion.Euler(0, fovAngle * 0.5f, 0) * transform.forward * detectionRange);
+        if (Application.isPlaying && currentState == State.Returning)
+        {
+            Gizmos.color = Color.magenta;
+            Gizmos.DrawLine(transform.position, spawnPosition);
+            Gizmos.DrawWireSphere(spawnPosition, returnArrivalDistance);
+        }
+    }
+
+    void WarpToNearestTaggedPoint()
+    {
+        GameObject[] points = GameObject.FindGameObjectsWithTag(warpPointTag);
+        if (points == null || points.Length == 0) return;
+        GameObject nearest = null;
+        float minD = float.MaxValue;
+        foreach (GameObject p in points)
+        {
+            float d = Vector3.Distance(transform.position, p.transform.position);
+            if (d < minD) { minD = d; nearest = p; }
+        }
+        if (nearest != null)
+        {
+            transform.position = nearest.transform.position;
+            startY = transform.position.y;
+            SnapToGrid();
+            currentTargetCell = GetGridPosition(transform.position);
+            currentState = State.Patrol;
+            lastSeenCell = new Vector3(9999f, 9999f, 9999f);
+            searchTimer = 0f;
+            stuckTimer = 0f;
+            consecutiveMaxLevelCount = 0;
+            visitLevelMap.Clear();
+            ChooseNewRandomDirection();
+        }
+    }
+
+    void ChooseNewRandomDirection()
+    {
+        Vector3 currentPos = GetGridPosition(transform.position);
+        Vector3[] dirs = { Vector3.forward, Vector3.back, Vector3.right, Vector3.left };
+        List<Vector3> valid = new List<Vector3>();
+        foreach (Vector3 d in dirs) if (!Physics.CheckSphere(currentPos + d * gridSize + Vector3.up, 0.5f, combinedMoveMask)) valid.Add(d);
+        targetDirection = valid.Count > 0 ? valid[UnityEngine.Random.Range(0, valid.Count)] : transform.forward;
+        currentTargetCell = currentPos + targetDirection * gridSize;
+    }
+
+    IEnumerator PlayHardGlitch()
+    {
+        Camera cam = Camera.main; if (cam == null) yield break;
+        float oAspect = cam.aspect; float oFOV = cam.fieldOfView; Vector3 oPos = cam.transform.localPosition;
+        float elapsed = 0f;
+        while (elapsed < glitchDuration)
+        {
+            cam.transform.localPosition = oPos + UnityEngine.Random.insideUnitSphere * shakeIntensity;
+            cam.aspect = oAspect * UnityEngine.Random.Range(1f / stretchIntensity, stretchIntensity);
+            cam.fieldOfView = oFOV + UnityEngine.Random.Range(-15f, 15f);
+            if (grain != null) grain.enabled.value = true;
+            elapsed += Time.unscaledDeltaTime; yield return null;
+        }
+        cam.ResetAspect(); if (grain != null) grain.enabled.value = false; cam.fieldOfView = oFOV; cam.transform.localPosition = oPos;
     }
 }

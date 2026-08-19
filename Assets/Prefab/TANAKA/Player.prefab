@@ -211,8 +211,8 @@ MonoBehaviour:
       m_PostInfinity: 2
       m_RotationOrder: 4
     VerticaltoHorizontalRatio: 2
-  playerLight: {fileID: 6935538877824724128}
   m_Camera: {fileID: 5478713577257565674}
+  playerLight: {fileID: 6935538877824724128}
   WalkSpeed: 4
   DashSpeed: 10
   BackSideSpeed: 3
@@ -220,20 +220,16 @@ MonoBehaviour:
   m_RotationSpeed: 2
   staminaTime: 4
   staminaHealTime: 3
-  walkStepInterval: 0.5
-  runStepInterval: 0.3
-  squatStepInterval: 0.7
-  staminamTimer: 0
-  volume: {fileID: 3960170807362732518, guid: 9253af7e5102d0641a25d989d76bf499, type: 3}
   staminamTime: 60
   ohudaTime: 10
   flashLightTime: 10
   flashStone: {fileID: 4076277513519597847, guid: 312d2b0b1d9dbed4aae276598b84db08, type: 3}
+  volume: {fileID: 3960170807362732518, guid: 9253af7e5102d0641a25d989d76bf499, type: 3}
   walkClip: {fileID: 8300000, guid: 31d95359492a4444fa6e84382913dc8d, type: 3}
   runClip: {fileID: 8300000, guid: 47122a9cdfcf7374282f9cadff5156e0, type: 3}
   footstepVolume: 0.2
   itemGetClip: {fileID: 8300000, guid: 7bdd9c359e5001d4c87ebf60dbec7bf2, type: 3}
-  itemGetVolume: 1
+  flashItemPrefab: {fileID: 6666251156526456618, guid: 805f4466835b1044b895457404e58f85, type: 3}
 --- !u!1 &5339840870610264546
 GameObject:
   m_ObjectHideFlags: 0
