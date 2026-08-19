@@ -7,14 +7,19 @@ public class EnemyTPArea : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        // Enemy本体、またはEnemyの子ColliderからEnemyを探す
-        Enemy enemy = other.GetComponentInParent<Enemy>();
+        // 1. タグで判定（パフォーマンスと誤作動防止のため）
+        if (other.CompareTag(enemyTag))
+        {
+            // 2. Enemy本体、またはEnemyの子ColliderからEnemyコンポーネントを探す
+            Enemy enemy = other.GetComponentInParent<Enemy>();
 
-        if (enemy == null)
-            return;
-
-        // Enemyをスポーン地点へワープ
-        enemy.TeleportToSpawn();
+            if (enemy != null)
+            {
+                // 3. その敵が持っているスポーン地点へワープ
+                Debug.Log($"{other.name} がワープエリアに進入。スポーン地点へ戻します。");
+                enemy.TeleportToSpawn();
+            }
+        }
     }
 
     private void OnDrawGizmos()
