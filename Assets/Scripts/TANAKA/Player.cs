@@ -281,7 +281,11 @@ public class Player : MonoBehaviour
     {
         switch (id)
         {
-            case 1: enemyOutline = true; outlineTimer = 0; break;
+            case 1: // 御札
+                UpdateEnemyList(); // シーン内の最新のEnemyタグ付きオブジェクトを再取得
+                enemyOutline = true;
+                outlineTimer = 0;
+                break;
             case 2: staminam = true; staminamTimer = 0; break;
             case 3: ExecuteFlashEffect(); break;
             case 4:
@@ -327,12 +331,49 @@ public class Player : MonoBehaviour
 
     private void UpdateItemEffects()
     {
-        if (m_Enemies != null) foreach (Enemy e in m_Enemies) if (e != null && e.GetComponent<Outline>()) e.GetComponent<Outline>().enabled = enemyOutline;
-        if (enemyOutline) { outlineTimer += Time.deltaTime; if (outlineTimer > ohudaTime) enemyOutline = false; }
+        // 御札の効果時間中の処理
+        if (enemyOutline)
+        {
+            outlineTimer += Time.deltaTime;
 
+            // 全ての敵のアウトラインを有効にする
+            if (m_Enemies != null)
+            {
+                foreach (Enemy e in m_Enemies)
+                {
+                    if (e != null)
+                    {
+                        Outline outline = e.GetComponent<Outline>();
+                        if (outline != null) outline.enabled = true;
+                    }
+                }
+            }
+
+            // 時間切れになったら終了
+            if (outlineTimer > ohudaTime)
+            {
+                enemyOutline = false;
+                // 全ての敵のアウトラインを無効にする（一括オフ）
+                if (m_Enemies != null)
+                {
+                    foreach (Enemy e in m_Enemies)
+                    {
+                        if (e != null)
+                        {
+                            Outline outline = e.GetComponent<Outline>();
+                            if (outline != null) outline.enabled = false;
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- 以下、スタミナム等の既存処理 ---
         if (staminam)
         {
-            staminamTimer += Time.deltaTime; staminaOut = false; stamina = Mathf.Min(stamina + Time.deltaTime * 10, 10.0f);
+            staminamTimer += Time.deltaTime;
+            staminaOut = false;
+            stamina = Mathf.Min(stamina + Time.deltaTime * 10, 10.0f);
             if (staminamTimer > staminamTime) staminam = false;
         }
 
