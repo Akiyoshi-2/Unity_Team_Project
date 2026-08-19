@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering.PostProcessing;
+using UnityEngine.SceneManagement;
 
 public class Enemy : MonoBehaviour
 {
@@ -53,6 +54,8 @@ public class Enemy : MonoBehaviour
     private Dictionary<Vector3, int> visitLevelMap = new Dictionary<Vector3, int>();
     private const int MAX_VISIT_LEVEL = 3;
     private LayerMask combinedMoveMask;
+
+    [SerializeField] private bool showVisitLevels = true;
 
     [SerializeField] private PostProcessVolume volume = null;
     private Grain grain;
@@ -105,6 +108,7 @@ public class Enemy : MonoBehaviour
         saveChaseSpeed = chaseSpeed;
         saveMoveSpeed = moveSpeed;
         saveDetectionRange = detectionRange;
+
     }
 
     void Update()
@@ -475,8 +479,35 @@ public class Enemy : MonoBehaviour
         }
     }
     void TriggerGlitchEffect() { if (IsVisualClear() && Time.time >= lastGlitchTime + glitchCooldown) { StartCoroutine(PlayHardGlitch()); lastGlitchTime = Time.time; } }
+
+    void AddVisitLevel(Vector3 pos)
+    {
+        pos = GetGridPosition(pos);
+
+        if (!visitLevelMap.ContainsKey(pos))
+        {
+            visitLevelMap[pos] = 1;
+        }
+        else
+        {
+            visitLevelMap[pos]++;
+        }
+
+        // 最大訪問レベルを超えないようにする
+        if (visitLevelMap[pos] > MAX_VISIT_LEVEL)
+        {
+            visitLevelMap[pos] = MAX_VISIT_LEVEL;
+        }
+    }
+
     int GetVisitLevel(Vector3 pos) => visitLevelMap.ContainsKey(pos) ? visitLevelMap[pos] : 0;
-    private void OnCollisionEnter(Collision collision) { if (enemyCollider.enabled && collision.gameObject.CompareTag(playerTag)) Destroy(collision.gameObject); }
+    private void OnCollisionEnter(Collision collision) 
+    {
+        if (enemyCollider.enabled && collision.gameObject.CompareTag(playerTag))
+        {
+            SceneManager.LoadScene("GameOverScene");
+        }
+    }
     Vector3 RoundVector(Vector3 v) => new Vector3(Mathf.Round(v.x), 0, Mathf.Round(v.z)).normalized;
     Vector3 GetGridPosition(Vector3 pos) => new Vector3(Mathf.Round(pos.x / gridSize) * gridSize, 0, Mathf.Round(pos.z / gridSize) * gridSize);
     void SnapToGrid() { Vector3 g = GetGridPosition(transform.position); transform.position = new Vector3(g.x, transform.position.y, g.z); }

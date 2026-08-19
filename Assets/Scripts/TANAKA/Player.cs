@@ -579,9 +579,20 @@ public class Player : MonoBehaviour
 
         if (enemyOutline)
         {
-            for (int i = 0; i < enemyObjects.Length; i++)
+            if (m_Enemies != null)
             {
-                m_Enemies[i].GetComponent<Outline>().enabled = true;
+                foreach (Enemy enemy in m_Enemies)
+                {
+                    if (enemy == null)
+                        continue;
+
+                    Outline outline = enemy.GetComponent<Outline>();
+
+                    if (outline != null)
+                    {
+                        outline.enabled = true;
+                    }
+                }
             }
 
             outlineTimer += Time.deltaTime;
@@ -593,9 +604,20 @@ public class Player : MonoBehaviour
         }
         else
         {
-            for (int i = 0; i < enemyObjects.Length; i++)
+            if (m_Enemies != null)
             {
-                m_Enemies[i].GetComponent<Outline>().enabled = false;
+                foreach (Enemy enemy in m_Enemies)
+                {
+                    if (enemy == null)
+                        continue;
+
+                    Outline outline = enemy.GetComponent<Outline>();
+
+                    if (outline != null)
+                    {
+                        outline.enabled = false;
+                    }
+                }
             }
 
             outlineTimer = 0;
